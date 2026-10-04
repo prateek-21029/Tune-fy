@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Cropper, { Area } from "react-easy-crop";
 import { X, ZoomIn, Check } from "lucide-react";
-import { getCroppedImg } from "../utils/cropImage";
+import  getCroppedImg  from "../utils/cropImage";
 
 interface ImageCropModalProps {
   isOpen: boolean;
