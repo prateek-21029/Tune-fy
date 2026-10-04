@@ -214,9 +214,11 @@ def get_db():
         db.close()
 
 app = FastAPI(title="Tune-fy API")
+from fastapi.middleware.cors import CORSMiddleware
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Allows requests from your Vercel app
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
