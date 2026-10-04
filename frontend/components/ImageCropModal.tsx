@@ -33,11 +33,15 @@ export default function ImageCropModal({
     if (!croppedAreaPixels || !imageSrc) return;
     setIsProcessing(true);
     try {
-      const croppedFile = await getCroppedImg(imageSrc, croppedAreaPixels);
-      if (croppedFile) {
-        onCropComplete(croppedFile);
-        onClose();
-      }
+      const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
+    if (croppedBlob) {
+      const croppedFile = new File([croppedBlob], "cropped-cover.jpg", {
+        type: "image/jpeg",
+        lastModified: Date.now(),
+      });
+      onCropComplete(croppedFile);
+      onClose();
+    }
     } catch (err) {
       console.error("Failed to crop image:", err);
     } finally {
