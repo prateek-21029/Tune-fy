@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+.next/
+out/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+
+# Database & Secrets
+.env.local
+*.db
+tunefy.db
+
+# System files
+.DS_Store

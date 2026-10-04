@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+:root {
+  --background: #121212;
+  --foreground: #ffffff;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  overflow: hidden;
+  user-select: none;
+}
+/* 1. Explicitly kill top & bottom arrow buttons */
+::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* 2. Slim 5px scrollbar width */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+/* 3. Fully transparent track */
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 4. Gemini-style subtle translucent fading pill */
+::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+  transition: background-color 0.3s ease, opacity 0.3s ease;
+}
+
+/* 5. Gentle brighten on hover */
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.35);
+}
+
+/* Firefox support (no buttons, thin, transparent) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}

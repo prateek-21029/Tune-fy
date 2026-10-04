@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+python-multipart
+pyjwt
+requests
+mutagen
+passlib[bcrypt]
+supabase
