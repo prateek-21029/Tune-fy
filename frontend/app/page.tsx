@@ -1,9 +1,8 @@
 "use client";
-
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import axios from "axios";
 import { Play, Pause, Heart, Music2, Clock, UploadCloud, FolderHeart } from "lucide-react";
+import api from "../utils/api";
 import TrackMenu from "../components/TrackMenu";
 import UploadModal from "../components/UploadModal";
 import TopHeader from "../components/TopHeader";
@@ -19,14 +18,12 @@ interface PlaylistSummary {
 }
 
 export default function Home() {
-  const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://tunefy-backend.onrender.com').replace(/\/$/, '');
   const { currentTheme, themeKey } = useTheme();
   const router = useRouter();
   const [tracks, setTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [recentTrackIds, setRecentTrackIds] = useState<string[]>([]);
-
   const { currentTrack, isPlaying, playTrack, togglePlay, likedTrackIds, toggleLike } = useAudio();
   const { user, token, openAuthModal } = useAuth() as any;
 
@@ -48,32 +45,23 @@ export default function Home() {
     return () => window.removeEventListener("storage", loadRecentTrackIds);
   }, [loadRecentTrackIds, currentTrack]);
 
-  const getAuthHeaders = useCallback(() => {
-    const activeToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
-    return activeToken ? { Authorization: `Bearer ${activeToken}` } : {};
-  }, [token]);
-
   const fetchTracks = useCallback(async () => {
     try {
-      const res = await axios.get("https://tunefy-backend.onrender.com/api/tracks", {
-        headers: getAuthHeaders(),
-      });
+      const res = await api.get("/api/tracks");
       setTracks(res.data);
     } catch (err) {
       console.error("Failed to load tracks:", err);
     }
-  }, [getAuthHeaders]);
+  }, []);
 
   const fetchPlaylists = useCallback(async () => {
     try {
-      const res = await axios.get("https://tunefy-backend.onrender.com/api/playlists", {
-        headers: getAuthHeaders(),
-      });
+      const res = await api.get("/api/playlists");
       setPlaylists(res.data);
     } catch (err) {
       console.error("Failed to load playlists:", err);
     }
-  }, [getAuthHeaders]);
+  }, []);
 
   useEffect(() => {
     fetchTracks();
@@ -127,7 +115,6 @@ export default function Home() {
     }
   };
 
-  const quickPlaylists = playlists.slice(0, 4);
   const contrastIconText = themeKey === "white" ? "fill-black text-black" : "fill-black text-black";
   const buttonTextColor = themeKey === "white" ? "text-black" : "text-black";
 
@@ -139,7 +126,6 @@ export default function Home() {
       className="flex-1 flex flex-col min-h-0 select-none overflow-y-auto"
     >
       <TopHeader />
-
       <UploadModal
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
@@ -159,7 +145,7 @@ export default function Home() {
         </div>
 
         {/* Quick-Access Top Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
           {/* Liked Songs */}
           <div
             onClick={() => {
@@ -226,35 +212,6 @@ export default function Home() {
               </button>
             </div>
           )}
-
-          {quickPlaylists.map((pl) => (
-            <div
-              key={pl.id}
-              onClick={() => router.push(`/playlist/${pl.id}`)}
-              className="flex items-center bg-white/5 hover:bg-white/15 rounded-md overflow-hidden transition-all duration-200 group cursor-pointer relative shadow-sm"
-            >
-              <div className="w-16 h-16 bg-neutral-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                {pl.coverUrl ? (
-                  <img src={pl.coverUrl} alt={pl.name} className="w-full h-full object-cover" />
-                ) : (
-                  <Music2 className="w-6 h-6 text-neutral-500" />
-                )}
-              </div>
-              <div className="px-4 flex-1">
-                <span className="font-bold text-sm text-white line-clamp-1">
-                  {pl.name}
-                </span>
-              </div>
-              <button
-                onClick={(e) => handlePlayPlaylist(pl, e)}
-                style={{ backgroundColor: currentTheme.primary }}
-                className="mr-4 w-10 h-10 rounded-full flex items-center justify-center shadow-lg opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 hover:scale-105 active:scale-95 transition-all duration-200"
-                title={`Play ${pl.name}`}
-              >
-                <Play className={`w-4 h-4 translate-x-0.5 ${contrastIconText}`} />
-              </button>
-            </div>
-          ))}
         </div>
 
         {/* Shelf: Recently Played for users, Featured Tracks for guests */}
@@ -269,7 +226,6 @@ export default function Home() {
                 {displayedTracks.length}
               </span>
             </div>
-
             {user && (
               <button
                 onClick={handleOpenUpload}
@@ -374,7 +330,6 @@ export default function Home() {
                             }}
                           />
                         </button>
-
                         {user && track.userId === user.id && (
                           <TrackMenu
                             trackId={track.id}

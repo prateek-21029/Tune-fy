@@ -1,7 +1,6 @@
 "use client";
-
 import React, { useState } from "react";
-import axios from "axios";
+import api from "../utils/api";
 import {
   X,
   Lock,
@@ -47,7 +46,6 @@ export default function AuthModal() {
   const [resetAnswer, setResetAnswer] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -148,7 +146,7 @@ export default function AuthModal() {
     setIsLoading(true);
 
     try {
-      const res = await axios.post("https://tunefy-backend.onrender.com/api/auth/security-question", {
+      const res = await api.post("/api/auth/security-question", {
         email: email.trim(),
       });
       setRetrievedQuestion(res.data.question);
@@ -167,6 +165,7 @@ export default function AuthModal() {
       setErrorMessage("Please answer your security question.");
       return;
     }
+
     if (newPassword.length < 4) {
       setErrorMessage("New password must be at least 4 characters.");
       return;
@@ -176,7 +175,7 @@ export default function AuthModal() {
     setIsLoading(true);
 
     try {
-      await axios.post("https://tunefy-backend.onrender.com/api/auth/reset-password", {
+      await api.post("/api/auth/reset-password", {
         email: email.trim(),
         security_answer: resetAnswer.trim(),
         new_password: newPassword,
@@ -236,7 +235,7 @@ export default function AuthModal() {
           </div>
         )}
 
-        {/* --- VIEW 1: LOGIN & REGISTER FORMS --- */}
+        {/* VIEW 1: LOGIN & REGISTER FORMS */}
         {mode !== "forgot" && (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -250,7 +249,11 @@ export default function AuthModal() {
                   required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder={mode === "register" ? "Choose a username" : "Enter username or email"}
+                  placeholder={
+                    mode === "register"
+                      ? "Choose a username"
+                      : "Enter username or email"
+                  }
                   className="w-full bg-[#242424] text-white text-xs pl-9 pr-3 py-2.5 rounded-lg border border-neutral-700 focus:border-[#1db954] outline-none transition"
                 />
               </div>
@@ -379,7 +382,7 @@ export default function AuthModal() {
           </form>
         )}
 
-        {/* --- VIEW 2: FORGOT PASSWORD RECOVERY --- */}
+        {/* VIEW 2: FORGOT PASSWORD RECOVERY */}
         {mode === "forgot" && (
           <div className="space-y-4">
             {forgotStep === 1 ? (
@@ -411,7 +414,6 @@ export default function AuthModal() {
               </form>
             ) : (
               <form onSubmit={handleResetPassword} className="space-y-4">
-                {/* Displayed Security Question */}
                 <div className="p-3 bg-neutral-900 border border-neutral-800 rounded-lg">
                   <span className="text-[10px] uppercase font-bold text-[#1db954] tracking-wider block mb-1">
                     Security Question

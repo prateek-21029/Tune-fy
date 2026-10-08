@@ -1,7 +1,12 @@
 "use client";
-
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import axios from "axios";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
+import api from "../utils/api";
 
 export interface User {
   id: number;
@@ -60,12 +65,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const openAuthModal = () => setIsAuthModalOpen(true);
   const closeAuthModal = () => setIsAuthModalOpen(false);
-
   const openProfileModal = () => setIsProfileModalOpen(true);
   const closeProfileModal = () => setIsProfileModalOpen(false);
 
   const login = async (identifier: string, password: string) => {
-    const res = await axios.post("https://tunefy-backend.onrender.com/api/auth/login", {
+    const res = await api.post("/api/auth/login", {
       username: identifier,
       password: password,
     });
@@ -83,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     securityQuestion?: string,
     securityAnswer?: string
   ) => {
-    const res = await axios.post("https://tunefy-backend.onrender.com/api/auth/register", {
+    const res = await api.post("/api/auth/register", {
       username,
       email,
       password,
@@ -107,11 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const deleteAccount = async () => {
     const activeToken = token || localStorage.getItem("token");
     if (!activeToken) return;
-
-    await axios.delete("https://tunefy-backend.onrender.com/api/auth/account", {
-      headers: { Authorization: `Bearer ${activeToken}` },
-    });
-
+    await api.delete("/api/auth/account");
     logout();
   };
 
@@ -156,6 +156,7 @@ export function useAudioContextHook() {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used inside an AuthProvider");
+  if (!context)
+    throw new Error("useAuth must be used inside an AuthProvider");
   return context;
 }
