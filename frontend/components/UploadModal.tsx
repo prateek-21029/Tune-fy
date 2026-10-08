@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import axios from "axios";
+import api from "../utils/api";
 import { X, UploadCloud, Sparkles, Image as ImageIcon, LogIn } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -57,9 +57,9 @@ export default function UploadModal({
     setIsSearching(true);
     setErrorMsg("");
     try {
-      const res = await axios.get("https://tunefy-backend.onrender.com/api/spotify/search", {
-        params: { q: title.trim() },
-      });
+      const res = await api.get("/api/spotify/search", {
+  params: { q: title.trim() },
+});
       if (res.data.title) setTitle(res.data.title);
       if (res.data.artist) setArtist(res.data.artist);
       if (res.data.coverUrl) {
@@ -127,7 +127,7 @@ export default function UploadModal({
         headers["Authorization"] = `Bearer ${activeToken}`;
       }
 
-      await axios.post("https://tunefy-backend.onrender.com/api/tracks/upload", formData, { headers });
+      await api.post("/api/tracks/upload", formData, { headers });
       onUploadSuccess();
       onClose();
       setAudioFile(null);
