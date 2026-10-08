@@ -97,14 +97,20 @@ except Exception:
 
 JWT_SECRET = "tunefy_super_secret_jwt_key_2026"
 JWT_ALGORITHM = "HS256"
-DATABASE_URL = "sqlite:///./tunefy.db"
+# Database connection: Uses PostgreSQL on Render/Supabase, SQLite locally
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./tunefy.db")
+
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False, "timeout": 15},
+    connect_args=connect_args,
+    pool_pre_ping=True
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
 
 playlist_tracks = Table(
     "playlist_tracks",

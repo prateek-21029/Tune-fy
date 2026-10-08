@@ -8,3 +8,4 @@ requests
 mutagen
 passlib[bcrypt]
 supabase
+psycopg2-binary
