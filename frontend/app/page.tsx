@@ -19,6 +19,7 @@ interface PlaylistSummary {
 }
 
 export default function Home() {
+  const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
   const { currentTheme, themeKey } = useTheme();
   const router = useRouter();
   const [tracks, setTracks] = useState<Track[]>([]);

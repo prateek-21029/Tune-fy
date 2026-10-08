@@ -218,12 +218,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows requests from your Vercel app
+    allow_origins=[
+        "http://localhost:3000",
+        "https://tune-fy-xdk7.vercel.app",
+    ],
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 class UserRegister(BaseModel):
     username: str
     email: str
