@@ -293,9 +293,18 @@ def normalize_url(url: str) -> str:
         return ""
     if url.startswith("http://") or url.startswith("https://"):
         return url
+    
+    # Use Render's public URL in production, localhost:8000 for local dev
+    base_url = (
+        os.getenv("RENDER_EXTERNAL_URL")
+        or "https://tunefy-backend.onrender.com"
+        if os.getenv("RENDER")
+        else "http://localhost:8000"
+    ).rstrip("/")
+
     if url.startswith("/"):
-        return f"http://localhost:8000{url}"
-    return f"http://localhost:8000/static/{url}"
+        return f"{base_url}{url}"
+    return f"{base_url}/static/{url}"
 
 # --- FILE ROUTING WITH FALLBACKS ---
 @app.get("/uploads/covers/{filename:path}")
@@ -490,7 +499,54 @@ def search_spotify_meta(q: str):
     return {"title": q, "artist": "", "coverUrl": None}
 
 # --- TRACKS ENDPOINTS ---
-# --- TRACKS ENDPOINTS ---
+STOCK_DEMO_TRACKS = [
+    {
+        "id": "1",
+        "title": "Electro Chill",
+        "artist": "SoundHelix",
+        "cover_url": "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=60",
+        "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+        "duration": 210,
+        "artist_bio": "Tune-fy verified creator streaming in lossless high-definition audio."
+    },
+    {
+        "id": "2",
+        "title": "Synthwave Breeze",
+        "artist": "SoundHelix",
+        "cover_url": "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=300&auto=format&fit=crop&q=60",
+        "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+        "duration": 210,
+        "artist_bio": "Tune-fy verified creator streaming in lossless high-definition audio."
+    },
+    {
+        "id": "3",
+        "title": "Midnight Drive",
+        "artist": "SoundHelix",
+        "cover_url": "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&auto=format&fit=crop&q=60",
+        "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+        "duration": 210,
+        "artist_bio": "Tune-fy verified creator streaming in lossless high-definition audio."
+    },
+    {
+        "id": "4",
+        "title": "Deep Focus",
+        "artist": "SoundHelix",
+        "cover_url": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&auto=format&fit=crop&q=60",
+        "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+        "duration": 210,
+        "artist_bio": "Tune-fy verified creator streaming in lossless high-definition audio."
+    },
+    {
+        "id": "5",
+        "title": "Urban Rhythm",
+        "artist": "SoundHelix",
+        "cover_url": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&auto=format&fit=crop&q=60",
+        "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
+        "duration": 210,
+        "artist_bio": "Tune-fy verified creator streaming in lossless high-definition audio."
+    }
+]
+
 @app.get("/api/tracks")
 def get_tracks(
     authorization: Optional[str] = Header(None),
@@ -498,25 +554,54 @@ def get_tracks(
 ):
     current_user = get_current_user_optional(authorization, db)
     if current_user:
-        # Strictly return only songs uploaded by this authenticated user
         tracks = db.query(DBTrack).filter(DBTrack.user_id == current_user.id).all()
+        return [
+            {
+                "id": t.id,
+                "title": t.title,
+                "artist": t.artist,
+                "coverUrl": normalize_url(t.cover_url),
+                "audioUrl": normalize_url(t.audio_url),
+                "duration": t.duration,
+                "userId": t.user_id,
+                "artistBio": t.artist_bio or "Tune-fy verified creator streaming in lossless high-definition audio."
+            }
+            for t in tracks
+        ]
     else:
         # Guests see the stock demo tracks
         tracks = db.query(DBTrack).filter(DBTrack.user_id == None).all()
+        
+        # If DB has no demo tracks, seed them permanently into the DB!
+        if not tracks:
+            for item in STOCK_DEMO_TRACKS:
+                db_track = DBTrack(
+                    id=item["id"],
+                    title=item["title"],
+                    artist=item["artist"],
+                    cover_url=item["cover_url"],
+                    audio_url=item["audio_url"],
+                    duration=item["duration"],
+                    user_id=None,
+                    artist_bio=item["artist_bio"]
+                )
+                db.add(db_track)
+            db.commit()
+            tracks = db.query(DBTrack).filter(DBTrack.user_id == None).all()
 
-    return [
-        {
-            "id": t.id,
-            "title": t.title,
-            "artist": t.artist,
-            "coverUrl": normalize_url(t.cover_url),
-            "audioUrl": normalize_url(t.audio_url),
-            "duration": t.duration,
-            "userId": t.user_id,
-            "artistBio": t.artist_bio or "Tune-fy verified creator streaming in lossless high-definition audio.",
-        }
-        for t in tracks
-    ]
+        return [
+            {
+                "id": t.id,
+                "title": t.title,
+                "artist": t.artist,
+                "coverUrl": normalize_url(t.cover_url),
+                "audioUrl": normalize_url(t.audio_url),
+                "duration": t.duration,
+                "userId": t.user_id,
+                "artistBio": t.artist_bio or "Tune-fy verified creator streaming in lossless high-definition audio."
+            }
+            for t in tracks
+        ]
 
 @app.post("/api/tracks/upload")
 @app.post("/api/upload")
