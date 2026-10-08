@@ -29,44 +29,66 @@ from sqlalchemy import (
     inspect,
     text,
 )
-from supabase import create_client, Client
-
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://cvqwnjdahhzjjyfgfvmc.supabase.co")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2cXduamRhaGh6amp5Zmdmdm1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExMzA1NDQsImV4cCI6MjEwNjcwNjU0NH0.uKyuRMFp6_Iz6A_es8VvyDfJ06copFZybsmhY2JJKU4")
-
-supabase: Client = None
-if SUPABASE_URL and SUPABASE_KEY:
-    try:
-        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-    except Exception as e:
-        print(f"Supabase init error: {e}")
-
-def upload_file_to_supabase(file_bytes: bytes, filename: str, content_type: str = "audio/mpeg") -> str:
-    """Uploads file to Supabase 'tunefy-files' bucket and returns direct public URL."""
-    if supabase:
-        try:
-            supabase.storage.from_("tunefy-files").upload(
-                path=filename,
-                file=file_bytes,
-                file_options={"content-type": content_type, "upsert": "true"}
-            )
-            return f"{SUPABASE_URL}/storage/v1/object/public/tunefy-files/{filename}"
-        except Exception as e:
-            print(f"Supabase upload error: {e}")
-
-    # Fallback to backend static file
-    local_path = os.path.join(STATIC_DIR, filename)
-    with open(local_path, "wb") as f:
-        f.write(file_bytes)
-
-    # Use Render's public URL in production, localhost in local dev
-    base_url = os.getenv("RENDER_EXTERNAL_URL", "https://tunefy-backend.onrender.com").rstrip("/") if os.getenv("RENDER") else "http://localhost:8000"
-    return f"{base_url}/static/{filename}"
-
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
 
-# Optional passlib / bcrypt support
+# Dynamic Base URL helper
+def get_backend_base_url() -> str:
+    """Returns the Render HTTPS URL when hosted, or localhost when running locally."""
+    return (
+        os.getenv("RENDER_EXTERNAL_URL")
+        or "https://tunefy-backend.onrender.com"
+        if os.getenv("RENDER")
+        else "http://localhost:8000"
+    ).rstrip("/")
+
+# --- SUPABASE STORAGE CONFIGURATION ---
+SUPABASE_URL = os.getenv("SUPABASE_URL", "https://cvqwnjdahhzjjyfgfvmc.supabase.co").rstrip("/")
+SUPABASE_KEY = os.getenv(
+    "SUPABASE_KEY",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2cXduamRhaGh6amp5Zmdmdm1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExMzA1NDQsImV4cCI6MjEwNjcwNjU0NH0.uKyuRMFp6_Iz6A_es8VvyDfJ06copFZybsmhY2JJKU4"
+)
+
+supabase = None
+try:
+    from supabase import create_client, Client
+    if SUPABASE_URL and SUPABASE_KEY:
+        supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+except Exception as e:
+    print(f"Supabase init error: {e}")
+
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+COVERS_DIR = os.path.join(STATIC_DIR, "covers")
+os.makedirs(STATIC_DIR, exist_ok=True)
+os.makedirs(COVERS_DIR, exist_ok=True)
+
+def upload_file_to_supabase(file_bytes: bytes, filename: str, content_type: str = "audio/mpeg") -> str:
+    """Uploads file to Supabase 'TUNEFY-FILES' bucket and returns direct public URL."""
+    base_url = get_backend_base_url()
+    
+    if supabase:
+        # Try both the dashboard name 'TUNEFY-FILES' and lowercase fallback
+        for bucket_name in ["TUNEFY-FILES", "tunefy-files"]:
+            try:
+                supabase.storage.from_(bucket_name).upload(
+                    path=filename,
+                    file=file_bytes,
+                    file_options={"content-type": content_type, "upsert": "true"}
+                )
+                return f"{SUPABASE_URL}/storage/v1/object/public/{bucket_name}/{filename}"
+            except Exception as e:
+                # If already exists or bucket error, try next
+                if "Duplicate" in str(e) or "already exists" in str(e).lower():
+                    return f"{SUPABASE_URL}/storage/v1/object/public/{bucket_name}/{filename}"
+                print(f"Supabase upload attempt ({bucket_name}) error: {e}")
+
+    # Fallback to backend static files with Render's HTTPS URL in production
+    local_path = os.path.join(STATIC_DIR, filename)
+    with open(local_path, "wb") as f:
+        f.write(file_bytes)
+    return f"{base_url}/static/{filename}"
+
+# --- DATABASE SETUP ---
 try:
     from passlib.context import CryptContext
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -132,7 +154,7 @@ Base.metadata.create_all(bind=engine)
 def run_auto_migrations():
     with engine.connect() as conn:
         inspector = inspect(engine)
-        # 1. Users migrations
+        # Users migrations
         if "users" in inspector.get_table_names():
             columns = [c["name"] for c in inspector.get_columns("users")]
             if "password_hash" not in columns:
@@ -154,7 +176,7 @@ def run_auto_migrations():
                 conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url VARCHAR"))
                 conn.commit()
 
-        # 2. Tracks migrations
+        # Tracks migrations
         if "tracks" in inspector.get_table_names():
             t_columns = [c["name"] for c in inspector.get_columns("tracks")]
             if "user_id" not in t_columns:
@@ -169,11 +191,6 @@ def run_auto_migrations():
 
 run_auto_migrations()
 
-STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
-COVERS_DIR = os.path.join(STATIC_DIR, "covers")
-os.makedirs(STATIC_DIR, exist_ok=True)
-os.makedirs(COVERS_DIR, exist_ok=True)
-
 def fix_all_audio_durations():
     """Calculates actual audio lengths for all tracks from disk and repairs legacy 210 values."""
     try:
@@ -183,7 +200,7 @@ def fix_all_audio_durations():
         tracks = db.query(DBTrack).all()
         repaired_count = 0
         for t in tracks:
-            if t.audio_url:
+            if t.audio_url and "/static/" in t.audio_url:
                 filename = t.audio_url.split("/static/")[-1].split("/")[-1]
                 filepath = os.path.join(STATIC_DIR, filename)
                 if os.path.exists(filepath):
@@ -206,7 +223,6 @@ def fix_all_audio_durations():
     except Exception as e:
         print(f"Timestamp repair note: {e}")
 
-# Run automatic repair on startup
 fix_all_audio_durations()
 
 def get_db():
@@ -216,8 +232,8 @@ def get_db():
     finally:
         db.close()
 
+# --- FASTAPI APP ---
 app = FastAPI(title="Tune-fy API")
-from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
@@ -230,6 +246,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 class UserRegister(BaseModel):
     username: str
     email: str
@@ -262,7 +279,7 @@ def get_current_user_optional(
 ) -> Optional[DBUser]:
     if not authorization:
         return None
-    token = authorization.replace("Bearer ", "").strip()
+    token = authorization.replace("Bearer", "").strip()
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         user_id = payload.get("sub")
@@ -293,15 +310,7 @@ def normalize_url(url: str) -> str:
         return ""
     if url.startswith("http://") or url.startswith("https://"):
         return url
-    
-    # Use Render's public URL in production, localhost:8000 for local dev
-    base_url = (
-        os.getenv("RENDER_EXTERNAL_URL")
-        or "https://tunefy-backend.onrender.com"
-        if os.getenv("RENDER")
-        else "http://localhost:8000"
-    ).rstrip("/")
-
+    base_url = get_backend_base_url()
     if url.startswith("/"):
         return f"{base_url}{url}"
     return f"{base_url}/static/{url}"
@@ -370,8 +379,8 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=401, detail="Invalid username/email or password")
     if not verify_password(payload.password, user.password_hash):
-        user.password_hash = payload.password
-        db.commit()
+        raise HTTPException(status_code=401, detail="Invalid username/email or password")
+    
     token = create_token(user.id)
     return {
         "token": token,
@@ -380,7 +389,7 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
             "username": user.username,
             "email": user.email,
             "displayName": user.display_name or user.username,
-            "avatarUrl": user.avatar_url,
+            "avatarUrl": normalize_url(user.avatar_url) if user.avatar_url else None,
         }
     }
 
@@ -393,7 +402,7 @@ def get_me(current_user: Optional[DBUser] = Depends(get_current_user_optional)):
         "username": current_user.username,
         "email": current_user.email,
         "displayName": current_user.display_name or current_user.username,
-        "avatarUrl": current_user.avatar_url,
+        "avatarUrl": normalize_url(current_user.avatar_url) if current_user.avatar_url else None,
     }
 
 @app.patch("/api/auth/profile")
@@ -420,7 +429,7 @@ def update_profile(
         "username": current_user.username,
         "email": current_user.email,
         "displayName": current_user.display_name or current_user.username,
-        "avatarUrl": current_user.avatar_url,
+        "avatarUrl": normalize_url(current_user.avatar_url) if current_user.avatar_url else None,
     }
 
 @app.post("/api/auth/avatar")
@@ -434,13 +443,12 @@ def upload_avatar(
         raise HTTPException(status_code=401, detail="Not authenticated")
     ext = os.path.splitext(file.filename)[1] or ".png"
     filename = f"avatar_{current_user.id}_{int(time.time())}{ext}"
-    target_path = os.path.join(STATIC_DIR, filename)
-    with open(target_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    avatar_url = f"http://localhost:8000/static/{filename}"
+    file_bytes = file.file.read()
+    
+    avatar_url = upload_file_to_supabase(file_bytes, filename, "image/png")
     current_user.avatar_url = avatar_url
     db.commit()
-    return {"avatarUrl": avatar_url}
+    return {"avatarUrl": normalize_url(avatar_url)}
 
 @app.delete("/api/auth/account")
 def delete_account(
@@ -450,7 +458,6 @@ def delete_account(
     current_user = get_current_user_optional(authorization, db)
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-
     user_tracks = db.query(DBTrack).filter(DBTrack.user_id == current_user.id).all()
     for t in user_tracks:
         if t.audio_url and "/static/" in t.audio_url:
@@ -468,7 +475,6 @@ def delete_account(
                 except Exception:
                     pass
         db.delete(t)
-
     db.query(DBLikedTrack).filter(DBLikedTrack.user_id == current_user.id).delete()
     db.query(DBPlaylist).filter(DBPlaylist.user_id == current_user.id).delete()
     db.delete(current_user)
@@ -547,61 +553,56 @@ STOCK_DEMO_TRACKS = [
     }
 ]
 
+def ensure_demo_tracks(db: Session):
+    """Seed demo tracks if none are present in database."""
+    count = db.query(DBTrack).filter(DBTrack.user_id == None).count()
+    if count == 0:
+        for item in STOCK_DEMO_TRACKS:
+            db_track = DBTrack(
+                id=item["id"],
+                title=item["title"],
+                artist=item["artist"],
+                cover_url=item["cover_url"],
+                audio_url=item["audio_url"],
+                duration=item["duration"],
+                user_id=None,
+                artist_bio=item["artist_bio"]
+            )
+            db.add(db_track)
+        db.commit()
+
 @app.get("/api/tracks")
 def get_tracks(
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
     current_user = get_current_user_optional(authorization, db)
-    if current_user:
-        tracks = db.query(DBTrack).filter(DBTrack.user_id == current_user.id).all()
-        return [
-            {
-                "id": t.id,
-                "title": t.title,
-                "artist": t.artist,
-                "coverUrl": normalize_url(t.cover_url),
-                "audioUrl": normalize_url(t.audio_url),
-                "duration": t.duration,
-                "userId": t.user_id,
-                "artistBio": t.artist_bio or "Tune-fy verified creator streaming in lossless high-definition audio."
-            }
-            for t in tracks
-        ]
-    else:
-        # Guests see the stock demo tracks
-        tracks = db.query(DBTrack).filter(DBTrack.user_id == None).all()
-        
-        # If DB has no demo tracks, seed them permanently into the DB!
-        if not tracks:
-            for item in STOCK_DEMO_TRACKS:
-                db_track = DBTrack(
-                    id=item["id"],
-                    title=item["title"],
-                    artist=item["artist"],
-                    cover_url=item["cover_url"],
-                    audio_url=item["audio_url"],
-                    duration=item["duration"],
-                    user_id=None,
-                    artist_bio=item["artist_bio"]
-                )
-                db.add(db_track)
-            db.commit()
-            tracks = db.query(DBTrack).filter(DBTrack.user_id == None).all()
+    ensure_demo_tracks(db)
 
-        return [
-            {
-                "id": t.id,
-                "title": t.title,
-                "artist": t.artist,
-                "coverUrl": normalize_url(t.cover_url),
-                "audioUrl": normalize_url(t.audio_url),
-                "duration": t.duration,
-                "userId": t.user_id,
-                "artistBio": t.artist_bio or "Tune-fy verified creator streaming in lossless high-definition audio."
-            }
-            for t in tracks
-        ]
+    if current_user:
+        # User sees their uploaded tracks
+        user_tracks = db.query(DBTrack).filter(DBTrack.user_id == current_user.id).all()
+        # If user has not uploaded anything yet, provide demo tracks as fallback preview
+        if not user_tracks:
+            user_tracks = db.query(DBTrack).filter(DBTrack.user_id == None).all()
+        tracks = user_tracks
+    else:
+        # Guests see demo tracks
+        tracks = db.query(DBTrack).filter(DBTrack.user_id == None).all()
+
+    return [
+        {
+            "id": t.id,
+            "title": t.title,
+            "artist": t.artist,
+            "coverUrl": normalize_url(t.cover_url),
+            "audioUrl": normalize_url(t.audio_url),
+            "duration": t.duration,
+            "userId": t.user_id,
+            "artistBio": t.artist_bio or "Tune-fy verified creator streaming in lossless high-definition audio."
+        }
+        for t in tracks
+    ]
 
 @app.post("/api/tracks/upload")
 @app.post("/api/upload")
@@ -620,7 +621,7 @@ def upload_track(
     user_id = current_user.id if current_user else None
     track_id = f"track_{int(time.time() * 1000)}"
 
-   # 1. Read audio bytes and save a local temporary copy for mutagen calculation
+    # 1. Read audio bytes and calculate duration
     audio_bytes = audio.file.read()
     audio_ext = os.path.splitext(audio.filename)[1] or ".mp3"
     audio_filename = f"{track_id}{audio_ext}"
@@ -628,7 +629,6 @@ def upload_track(
     with open(temp_audio_path, "wb") as buffer:
         buffer.write(audio_bytes)
 
-    # 2. Calculate accurate audio duration using mutagen
     final_duration = duration if (duration and duration > 0) else 210
     try:
         from mutagen.mp3 import MP3
@@ -642,11 +642,11 @@ def upload_track(
     except Exception:
         pass
 
-    # 3. Upload Audio to Supabase Bucket
+    # 2. Upload Audio to Supabase
     mime_type = "audio/mpeg" if audio_ext.lower() == ".mp3" else "audio/wav"
     audio_url = upload_file_to_supabase(audio_bytes, audio_filename, mime_type)
 
-    # 4. Handle Cover Artwork (Upload to Supabase if file provided)
+    # 3. Handle Cover Artwork
     final_cover_url = "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop"
     if cover:
         cover_bytes = cover.file.read()
@@ -733,10 +733,9 @@ def update_track(
     if cover:
         ext = os.path.splitext(cover.filename)[1] or ".jpg"
         cover_filename = f"{track_id}_cover_{int(time.time())}{ext}"
-        cover_path = os.path.join(STATIC_DIR, cover_filename)
-        with open(cover_path, "wb") as buffer:
-            shutil.copyfileobj(cover.file, buffer)
-        track.cover_url = f"http://localhost:8000/static/{cover_filename}"
+        cover_bytes = cover.file.read()
+        track.cover_url = upload_file_to_supabase(cover_bytes, cover_filename, "image/jpeg")
+
     db.commit()
     db.refresh(track)
     return {
@@ -777,11 +776,10 @@ def toggle_like(
         db.delete(existing)
         db.commit()
         return {"status": "unliked"}
-    else:
-        new_like = DBLikedTrack(user_id=user_id, track_id=track_id)
-        db.add(new_like)
-        db.commit()
-        return {"status": "liked"}
+    new_like = DBLikedTrack(user_id=user_id, track_id=track_id)
+    db.add(new_like)
+    db.commit()
+    return {"status": "liked"}
 
 # --- PLAYLISTS ---
 @app.get("/api/playlists")
@@ -877,13 +875,11 @@ def upload_playlist_cover(
         raise HTTPException(status_code=404, detail="Playlist not found")
     ext = os.path.splitext(file.filename)[1] or ".jpg"
     filename = f"playlist_{playlist_id}_{int(time.time())}{ext}"
-    target_path = os.path.join(STATIC_DIR, filename)
-    with open(target_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    cover_url = f"http://localhost:8000/static/{filename}"
+    cover_bytes = file.file.read()
+    cover_url = upload_file_to_supabase(cover_bytes, filename, "image/jpeg")
     pl.cover_url = cover_url
     db.commit()
-    return {"coverUrl": cover_url}
+    return {"coverUrl": normalize_url(cover_url)}
 
 @app.post("/api/playlists/{playlist_id}/tracks/{track_id}")
 def add_track_to_playlist(playlist_id: int, track_id: str, db: Session = Depends(get_db)):
@@ -957,4 +953,5 @@ def get_lyrics(title: str, artist: Optional[str] = None):
                 }
     except Exception:
         pass
+
     raise HTTPException(status_code=404, detail="No lyrics found")
