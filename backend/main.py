@@ -54,11 +54,14 @@ def upload_file_to_supabase(file_bytes: bytes, filename: str, content_type: str 
         except Exception as e:
             print(f"Supabase upload error: {e}")
 
-    # Fallback to local static file
+    # Fallback to backend static file
     local_path = os.path.join(STATIC_DIR, filename)
     with open(local_path, "wb") as f:
         f.write(file_bytes)
-    return f"http://localhost:8000/static/{filename}"
+
+    # Use Render's public URL in production, localhost in local dev
+    base_url = os.getenv("RENDER_EXTERNAL_URL", "https://tunefy-backend.onrender.com").rstrip("/") if os.getenv("RENDER") else "http://localhost:8000"
+    return f"{base_url}/static/{filename}"
 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
