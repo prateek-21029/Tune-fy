@@ -20,7 +20,7 @@ export default function LikedSongsPage() {
 
   const fetchLikedTracks = async () => {
     try {
-      const res = await axios.get("http://localhost:8000/api/tracks");
+      const res = await axios.get("https://tunefy-backend.onrender.com/api/tracks");
       const allTracks: Track[] = res.data;
       setLikedTracks(allTracks.filter((t) => likedTrackIds.includes(t.id)));
     } catch (err) {

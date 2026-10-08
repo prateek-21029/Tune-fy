@@ -92,7 +92,7 @@ export default function PlaylistDetail() {
       const headers = getAuthHeaders();
 
       if (isLikedView) {
-        const res = await axios.get("http://localhost:8000/api/tracks", { headers });
+        const res = await axios.get("https://tunefy-backend.onrender.com/api/tracks", { headers });
         const allTracks: Track[] = res.data;
         const liked = allTracks.filter((t) => likedTrackIds.includes(t.id));
         setPlaylist({
@@ -102,7 +102,7 @@ export default function PlaylistDetail() {
           tracks: liked,
         });
       } else if (isUploadsView) {
-        const res = await axios.get("http://localhost:8000/api/tracks", { headers });
+        const res = await axios.get("https://tunefy-backend.onrender.com/api/tracks", { headers });
         setPlaylist({
           id: "uploads",
           name: "Uploaded Songs",
@@ -115,7 +115,7 @@ export default function PlaylistDetail() {
           setPlaylist(null);
           return;
         }
-        const res = await axios.get(`http://localhost:8000/api/playlists/${numId}`, { headers });
+        const res = await axios.get(`https://tunefy-backend.onrender.com/api/playlists/${numId}`, { headers });
         setPlaylist(res.data);
         setEditedTitle(res.data.name);
       }
@@ -150,7 +150,7 @@ export default function PlaylistDetail() {
     }
     try {
       await axios.patch(
-        `http://localhost:8000/api/playlists/${playlistId}`,
+        `https://tunefy-backend.onrender.com/api/playlists/${playlistId}`,
         { name: editedTitle.trim() },
         { headers: getAuthHeaders() }
       );
@@ -184,7 +184,7 @@ export default function PlaylistDetail() {
       const formData = new FormData();
       formData.append("file", croppedBlob, "cover.jpg");
       const res = await axios.post(
-        `http://localhost:8000/api/playlists/${playlistId}/cover`,
+        `https://tunefy-backend.onrender.com/api/playlists/${playlistId}/cover`,
         formData,
         {
           headers: {
@@ -211,7 +211,7 @@ export default function PlaylistDetail() {
     if (isUploadsView) {
       if (!confirm("Are you sure you want to permanently delete this uploaded track?")) return;
       try {
-        await axios.delete(`http://localhost:8000/api/tracks/${trackId}`, {
+        await axios.delete(`https://tunefy-backend.onrender.com/api/tracks/${trackId}`, {
           headers: getAuthHeaders(),
         });
         fetchPlaylistData();
@@ -221,7 +221,7 @@ export default function PlaylistDetail() {
       return;
     }
     try {
-      await axios.delete(`http://localhost:8000/api/playlists/${playlistId}/tracks/${trackId}`, {
+      await axios.delete(`https://tunefy-backend.onrender.com/api/playlists/${playlistId}/tracks/${trackId}`, {
         headers: getAuthHeaders(),
       });
       fetchPlaylistData();
@@ -234,7 +234,7 @@ export default function PlaylistDetail() {
     if (isSpecialView || !playlistId) return;
     if (!confirm(`Are you sure you want to delete "${playlist?.name}"?`)) return;
     try {
-      await axios.delete(`http://localhost:8000/api/playlists/${playlistId}`, {
+      await axios.delete(`https://tunefy-backend.onrender.com/api/playlists/${playlistId}`, {
         headers: getAuthHeaders(),
       });
       router.push("/");

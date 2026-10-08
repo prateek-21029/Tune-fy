@@ -61,7 +61,7 @@ export default function SearchPage() {
 
   const fetchTracks = useCallback(async () => {
     try {
-      const res = await axios.get("http://localhost:8000/api/tracks", {
+      const res = await axios.get("https://tunefy-backend.onrender.com/api/tracks", {
         headers: getAuthHeaders(),
       });
       setAllTracks(res.data);
@@ -97,7 +97,7 @@ export default function SearchPage() {
     const timer = setTimeout(async () => {
       setIsSearchingOnline(true);
       try {
-        const res = await axios.get("http://localhost:8000/api/spotify/search", {
+        const res = await axios.get("https://tunefy-backend.onrender.com/api/spotify/search", {
           params: { q },
         });
         if (res.data?.title && res.data.title.toLowerCase() !== q.toLowerCase()) {

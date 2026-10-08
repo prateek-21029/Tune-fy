@@ -57,7 +57,7 @@ export default function UploadModal({
     setIsSearching(true);
     setErrorMsg("");
     try {
-      const res = await axios.get("http://localhost:8000/api/spotify/search", {
+      const res = await axios.get("https://tunefy-backend.onrender.com/api/spotify/search", {
         params: { q: title.trim() },
       });
       if (res.data.title) setTitle(res.data.title);
@@ -127,7 +127,7 @@ export default function UploadModal({
         headers["Authorization"] = `Bearer ${activeToken}`;
       }
 
-      await axios.post("http://localhost:8000/api/tracks/upload", formData, { headers });
+      await axios.post("https://tunefy-backend.onrender.com/api/tracks/upload", formData, { headers });
       onUploadSuccess();
       onClose();
       setAudioFile(null);

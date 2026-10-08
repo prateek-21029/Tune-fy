@@ -19,7 +19,7 @@ interface PlaylistSummary {
 }
 
 export default function Home() {
-  const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+  const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://tunefy-backend.onrender.com').replace(/\/$/, '');
   const { currentTheme, themeKey } = useTheme();
   const router = useRouter();
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -55,7 +55,7 @@ export default function Home() {
 
   const fetchTracks = useCallback(async () => {
     try {
-      const res = await axios.get("http://localhost:8000/api/tracks", {
+      const res = await axios.get("https://tunefy-backend.onrender.com/api/tracks", {
         headers: getAuthHeaders(),
       });
       setTracks(res.data);
@@ -66,7 +66,7 @@ export default function Home() {
 
   const fetchPlaylists = useCallback(async () => {
     try {
-      const res = await axios.get("http://localhost:8000/api/playlists", {
+      const res = await axios.get("https://tunefy-backend.onrender.com/api/playlists", {
         headers: getAuthHeaders(),
       });
       setPlaylists(res.data);

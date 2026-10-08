@@ -61,7 +61,7 @@ export default function TrackMenu({
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await axios.get("http://localhost:8000/api/playlists", { headers });
+      const res = await axios.get("https://tunefy-backend.onrender.com/api/playlists", { headers });
       setPlaylists(res.data);
     } catch {
       setPlaylists([]);
@@ -116,7 +116,7 @@ export default function TrackMenu({
       const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       await axios.post(
-        `http://localhost:8000/api/playlists/${playlistId}/tracks/${trackId}`,
+        `https://tunefy-backend.onrender.com/api/playlists/${playlistId}/tracks/${trackId}`,
         {},
         { headers }
       );
@@ -136,7 +136,7 @@ export default function TrackMenu({
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      await axios.delete(`http://localhost:8000/api/tracks/${trackId}`, { headers });
+      await axios.delete(`https://tunefy-backend.onrender.com/api/tracks/${trackId}`, { headers });
       setIsOpen(false);
       if (onTrackDeleted) onTrackDeleted();
     } catch (err) {
@@ -175,7 +175,7 @@ export default function TrackMenu({
         "Content-Type": "multipart/form-data",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
-      await axios.patch(`http://localhost:8000/api/tracks/${trackId}`, formData, { headers });
+      await axios.patch(`https://tunefy-backend.onrender.com/api/tracks/${trackId}`, formData, { headers });
       setIsEditOpen(false);
       setIsOpen(false);
       if (onTrackUpdated) onTrackUpdated();

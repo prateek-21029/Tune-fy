@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const closeProfileModal = () => setIsProfileModalOpen(false);
 
   const login = async (identifier: string, password: string) => {
-    const res = await axios.post("http://localhost:8000/api/auth/login", {
+    const res = await axios.post("https://tunefy-backend.onrender.com/api/auth/login", {
       username: identifier,
       password: password,
     });
@@ -83,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     securityQuestion?: string,
     securityAnswer?: string
   ) => {
-    const res = await axios.post("http://localhost:8000/api/auth/register", {
+    const res = await axios.post("https://tunefy-backend.onrender.com/api/auth/register", {
       username,
       email,
       password,
@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const activeToken = token || localStorage.getItem("token");
     if (!activeToken) return;
 
-    await axios.delete("http://localhost:8000/api/auth/account", {
+    await axios.delete("https://tunefy-backend.onrender.com/api/auth/account", {
       headers: { Authorization: `Bearer ${activeToken}` },
     });
 

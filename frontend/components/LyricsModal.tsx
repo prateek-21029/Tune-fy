@@ -46,7 +46,7 @@ export default function LyricsModal() {
     const fetchLyrics = async () => {
       setLoading(true);
       try {
-        const res = await axios.get("http://localhost:8000/api/lyrics", {
+        const res = await axios.get("https://tunefy-backend.onrender.com/api/lyrics", {
           params: { title: currentTrack.title, artist: currentTrack.artist },
         });
         if (isMounted) {

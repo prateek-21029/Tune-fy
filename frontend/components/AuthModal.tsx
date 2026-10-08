@@ -148,7 +148,7 @@ export default function AuthModal() {
     setIsLoading(true);
 
     try {
-      const res = await axios.post("http://localhost:8000/api/auth/security-question", {
+      const res = await axios.post("https://tunefy-backend.onrender.com/api/auth/security-question", {
         email: email.trim(),
       });
       setRetrievedQuestion(res.data.question);
@@ -176,7 +176,7 @@ export default function AuthModal() {
     setIsLoading(true);
 
     try {
-      await axios.post("http://localhost:8000/api/auth/reset-password", {
+      await axios.post("https://tunefy-backend.onrender.com/api/auth/reset-password", {
         email: email.trim(),
         security_answer: resetAnswer.trim(),
         new_password: newPassword,

@@ -43,7 +43,7 @@ export default function Sidebar() {
       return;
     }
     try {
-      const res = await axios.get("http://localhost:8000/api/playlists", {
+      const res = await axios.get("https://tunefy-backend.onrender.com/api/playlists", {
         headers: getAuthHeaders(),
       });
       setPlaylists(res.data);
@@ -71,7 +71,7 @@ export default function Sidebar() {
     if (!newPlaylistName.trim()) return;
     try {
       const res = await axios.post(
-        "http://localhost:8000/api/playlists",
+        "https://tunefy-backend.onrender.com/api/playlists",
         { name: newPlaylistName.trim() },
         { headers: getAuthHeaders() }
       );
@@ -92,7 +92,7 @@ export default function Sidebar() {
     e.stopPropagation();
     if (!confirm(`Are you sure you want to delete playlist "${name}"?`)) return;
     try {
-      await axios.delete(`http://localhost:8000/api/playlists/${id}`, {
+      await axios.delete(`https://tunefy-backend.onrender.com/api/playlists/${id}`, {
         headers: getAuthHeaders(),
       });
       fetchPlaylists();

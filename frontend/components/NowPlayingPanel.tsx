@@ -82,7 +82,7 @@ function NotesCard() {
       const formData = new FormData();
       formData.append("artist_bio", noteText.trim());
 
-      await axios.patch(`http://localhost:8000/api/tracks/${currentTrack.id}`, formData);
+      await axios.patch(`https://tunefy-backend.onrender.com/api/tracks/${currentTrack.id}`, formData);
       if (updateTrackBio) {
         updateTrackBio(currentTrack.id, noteText.trim());
       }

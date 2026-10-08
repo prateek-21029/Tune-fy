@@ -45,7 +45,7 @@ export default function ProfileModal() {
       const fetchCurrentProfile = async () => {
         try {
           const activeToken = token || localStorage.getItem("token");
-          const res = await axios.get("http://localhost:8000/api/auth/me", {
+          const res = await axios.get("https://tunefy-backend.onrender.com/api/auth/me", {
             headers: { Authorization: `Bearer ${activeToken}` },
           });
           const q = res.data.securityQuestion;
@@ -117,7 +117,7 @@ export default function ProfileModal() {
         payload.security_answer = securityAnswer.trim();
       }
 
-      const res = await axios.patch("http://localhost:8000/api/auth/profile", payload, { headers });
+      const res = await axios.patch("https://tunefy-backend.onrender.com/api/auth/profile", payload, { headers });
       if (typeof updateUser === "function") {
         updateUser(res.data);
       }
@@ -128,7 +128,7 @@ export default function ProfileModal() {
         if (croppedBlob) {
           const formData = new FormData();
           formData.append("file", croppedBlob, "avatar.png");
-          const avatarRes = await axios.post("http://localhost:8000/api/auth/avatar", formData, {
+          const avatarRes = await axios.post("https://tunefy-backend.onrender.com/api/auth/avatar", formData, {
             headers: {
               "Content-Type": "multipart/form-data",
               Authorization: `Bearer ${activeToken}`,

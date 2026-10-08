@@ -541,7 +541,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const fetchLikedTracks = async () => {
       try {
-        const res = await axios.get("http://localhost:8000/api/liked");
+        const res = await axios.get("https://tunefy-backend.onrender.com/api/liked");
         setLikedTrackIds(res.data);
       } catch {
         setLikedTrackIds([]);
@@ -601,7 +601,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const toggleLike = async (trackId: string) => {
     try {
       const res = await axios.post(
-        `http://localhost:8000/api/liked/${trackId}`
+        `https://tunefy-backend.onrender.com/api/liked/${trackId}`
       );
       if (res.data.status === "liked") {
         setLikedTrackIds((prev) => [...prev, trackId]);
