@@ -106,13 +106,21 @@ export default function PlaylistDetail() {
         });
       } else if (isUploadsView) {
         const res = await api.get("/api/tracks", { headers });
+        const allTracks: Track[] = Array.isArray(res.data) ? res.data : [];
+        // Strictly keep tracks belonging to this logged-in user (excludes demo tracks where userId is null/undefined)
+        const userOnlyTracks = user 
+          ? allTracks.filter((t) => t.userId != null && String(t.userId) === String(user.id))
+        : [];
+
         setPlaylist({
           id: "uploads",
           name: "Uploaded Songs",
           coverUrl: null,
-          tracks: res.data,
+          tracks: userOnlyTracks,
         });
-      } else {
+}
+      
+      else {
         const numId = parseInt(playlistId, 10);
         if (isNaN(numId)) {
           setPlaylist(null);
