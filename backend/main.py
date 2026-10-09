@@ -685,10 +685,10 @@ def get_tracks(
     ensure_demo_tracks(db)
 
     if current_user:
-        # Strictly return this user's tracks (returns [] if none uploaded yet)
+        # Logged-in user strictly receives their own uploaded tracks (empty list if none)
         tracks = db.query(DBTrack).filter(DBTrack.user_id == current_user.id).all()
     else:
-        # Guests only see demo tracks
+        # Guests strictly receive the demo tracks
         tracks = db.query(DBTrack).filter(DBTrack.user_id == None).all()
 
     return [
