@@ -127,6 +127,8 @@ class DBUser(Base):
     password_hash = Column(String)
     display_name = Column(String, nullable=True)
     avatar_url = Column(String, nullable=True)
+    security_question = Column(String, nullable=True)
+    security_answer = Column(String, nullable=True)
     playlists = relationship("DBPlaylist", back_populates="owner", cascade="all, delete-orphan")
 
 class DBTrack(Base):
@@ -257,6 +259,16 @@ class UserRegister(BaseModel):
     username: str
     email: str
     password: str
+    security_question: Optional[str] = None
+    security_answer: Optional[str] = None
+
+class SecurityQuestionRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    security_answer: str
+    new_password: str
 
 class UserLogin(BaseModel):
     username: str
@@ -350,20 +362,62 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 # --- AUTH ENDPOINTS ---
 @app.post("/api/auth/register")
 def register(payload: UserRegister, db: Session = Depends(get_db)):
+    uname = payload.username.strip()
+    uemail = payload.email.strip().lower()
+    
+    # Check if username or email already exists (case-insensitive)
     existing = db.query(DBUser).filter(
-        (DBUser.username == payload.username) | (DBUser.email == payload.email)
+        (DBUser.username.ilike(uname)) | (DBUser.email.ilike(uemail))
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username or email already taken")
+    
+    # Store clean password
     new_user = DBUser(
-        username=payload.username.strip(),
-        email=payload.email.strip(),
-        password_hash=payload.password,
-        display_name=payload.username.strip(),
+        username=uname,
+        email=uemail,
+        password_hash=payload.password.strip(),
+        display_name=uname,
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    
+    token = create_token(new_user.id)
+    return {
+        "token": token,
+        "user": {
+            "id": new_user.id,
+            "username": new_user.username,
+            "email": new_user.email,
+            "displayName": new_user.display_name or new_user.username,
+            "avatarUrl": new_user.avatar_url,
+        }
+    }
+
+@app.post("/api/auth/register")
+def register(payload: UserRegister, db: Session = Depends(get_db)):
+    uname = payload.username.strip()
+    uemail = payload.email.strip().lower()
+
+    existing = db.query(DBUser).filter(
+        (DBUser.username.ilike(uname)) | (DBUser.email.ilike(uemail))
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Username or email already taken")
+
+    new_user = DBUser(
+        username=uname,
+        email=uemail,
+        password_hash=payload.password.strip(),
+        display_name=uname,
+        security_question=payload.security_question.strip() if payload.security_question else None,
+        security_answer=payload.security_answer.strip().lower() if payload.security_answer else None,
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
     token = create_token(new_user.id)
     return {
         "token": token,
@@ -379,12 +433,17 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
 @app.post("/api/auth/login")
 def login(payload: UserLogin, db: Session = Depends(get_db)):
     identifier = payload.username.strip()
+    
+    # Check case-insensitively so login succeeds regardless of typing email or username
     user = db.query(DBUser).filter(
-        (DBUser.username == identifier) | (DBUser.email == identifier)
+        (DBUser.username.ilike(identifier)) | (DBUser.email.ilike(identifier))
     ).first()
+    
     if not user:
         raise HTTPException(status_code=401, detail="Invalid username/email or password")
-    if not verify_password(payload.password, user.password_hash):
+    
+    pwd = payload.password.strip()
+    if user.password_hash != pwd and not verify_password(pwd, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid username/email or password")
     
     token = create_token(user.id)
@@ -398,6 +457,26 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
             "avatarUrl": normalize_url(user.avatar_url) if user.avatar_url else None,
         }
     }
+
+@app.post("/api/auth/security-question")
+def get_security_question(payload: SecurityQuestionRequest, db: Session = Depends(get_db)):
+    user = db.query(DBUser).filter(DBUser.email.ilike(payload.email.strip())).first()
+    if not user or not user.security_question:
+        raise HTTPException(status_code=404, detail="No recovery question registered for this email.")
+    return {"question": user.security_question}
+
+@app.post("/api/auth/reset-password")
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(DBUser).filter(DBUser.email.ilike(payload.email.strip())).first()
+    if not user or not user.security_answer:
+        raise HTTPException(status_code=404, detail="User not found or no security answer set.")
+    
+    if user.security_answer.strip().lower() != payload.security_answer.strip().lower():
+        raise HTTPException(status_code=400, detail="Incorrect security answer.")
+    
+    user.password_hash = payload.new_password.strip()
+    db.commit()
+    return {"status": "password_reset_success"}
 
 @app.get("/api/auth/me")
 def get_me(current_user: Optional[DBUser] = Depends(get_current_user_optional)):
