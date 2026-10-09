@@ -685,10 +685,10 @@ def get_tracks(
     ensure_demo_tracks(db)
 
     if current_user:
-        # Strictly return tracks uploaded by this user (empty list if none uploaded yet)
+        # Strictly return this user's tracks (returns [] if none uploaded yet)
         tracks = db.query(DBTrack).filter(DBTrack.user_id == current_user.id).all()
     else:
-        # Guests see demo tracks
+        # Guests only see demo tracks
         tracks = db.query(DBTrack).filter(DBTrack.user_id == None).all()
 
     return [
@@ -704,6 +704,7 @@ def get_tracks(
         }
         for t in tracks
     ]
+
 @app.post("/api/tracks/upload")
 @app.post("/api/upload")
 def upload_track(

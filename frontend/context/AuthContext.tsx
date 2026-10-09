@@ -48,20 +48,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
 
-  useEffect(() => {
-    const savedToken = localStorage.getItem("token");
-    const savedUser = localStorage.getItem("user");
-    if (savedToken && savedUser) {
-      try {
-        setToken(savedToken);
-        setUser(JSON.parse(savedUser));
-      } catch {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-      }
+useEffect(() => {
+  const savedToken = localStorage.getItem("token");
+  const savedUser = localStorage.getItem("user");
+
+  if (savedToken && savedUser) {
+    try {
+      setToken(savedToken);
+      setUser(JSON.parse(savedUser));
+      
+      // Verify token is still valid on backend
+      api.get("/api/auth/me")
+        .then((res) => {
+          setUser(res.data);
+          localStorage.setItem("user", JSON.stringify(res.data));
+        })
+        .catch(() => {
+          // Account was deleted on another device or token expired
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          setToken(null);
+          setUser(null);
+        });
+    } catch {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      setToken(null);
+      setUser(null);
     }
-    setIsLoading(false);
-  }, []);
+  }
+  setIsLoading(false);
+}, []);
 
   const openAuthModal = () => setIsAuthModalOpen(true);
   const closeAuthModal = () => setIsAuthModalOpen(false);
@@ -108,12 +125,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("user");
   }, []);
 
-  const deleteAccount = async () => {
-    const activeToken = token || localStorage.getItem("token");
-    if (!activeToken) return;
-    await api.delete("/api/auth/account");
+const deleteAccount = async () => {
+  const activeToken =
+    token ||
+    (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+  if (!activeToken) {
     logout();
-  };
+    return;
+  }
+  try {
+    await api.delete("/api/auth/account");
+  } catch (err: any) {
+    console.warn("Account delete response:", err?.response?.status);
+  } finally {
+    logout();
+  }
+};
 
   const updateUser = (updatedUser: Partial<User>) => {
     setUser((prev) => {
