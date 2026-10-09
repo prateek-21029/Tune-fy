@@ -518,7 +518,7 @@ STOCK_DEMO_TRACKS = [
         "artist": "SoundHelix",
         "cover_url": "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=60",
         "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-        "duration": 210,
+        "duration": 372,
         "artist_bio": "Tune-fy verified creator streaming in lossless high-definition audio."
     },
     {
@@ -527,7 +527,7 @@ STOCK_DEMO_TRACKS = [
         "artist": "SoundHelix",
         "cover_url": "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=300&auto=format&fit=crop&q=60",
         "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-        "duration": 210,
+        "duration": 435,
         "artist_bio": "Tune-fy verified creator streaming in lossless high-definition audio."
     },
     {
@@ -536,7 +536,7 @@ STOCK_DEMO_TRACKS = [
         "artist": "SoundHelix",
         "cover_url": "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&auto=format&fit=crop&q=60",
         "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-        "duration": 210,
+        "duration": 346,
         "artist_bio": "Tune-fy verified creator streaming in lossless high-definition audio."
     },
     {
@@ -545,7 +545,7 @@ STOCK_DEMO_TRACKS = [
         "artist": "SoundHelix",
         "cover_url": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&auto=format&fit=crop&q=60",
         "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-        "duration": 210,
+        "duration": 302,
         "artist_bio": "Tune-fy verified creator streaming in lossless high-definition audio."
     },
     {
@@ -554,7 +554,7 @@ STOCK_DEMO_TRACKS = [
         "artist": "SoundHelix",
         "cover_url": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&auto=format&fit=crop&q=60",
         "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
-        "duration": 210,
+        "duration": 353,
         "artist_bio": "Tune-fy verified creator streaming in lossless high-definition audio."
     }
 ]
@@ -576,6 +576,13 @@ def ensure_demo_tracks(db: Session):
             )
             db.add(db_track)
         db.commit()
+        # Update existing demo tracks if they were already seeded with 210
+    durations_map = {"1": 372, "2": 425, "3": 346, "4": 302, "5": 353}
+    for track_id, real_len in durations_map.items():
+        db_track = db.query(DBTrack).filter(DBTrack.id == track_id).first()
+        if db_track and db_track.duration == 210:
+            db_track.duration = real_len
+    db.commit()
 
 @app.get("/api/tracks")
 def get_tracks(
