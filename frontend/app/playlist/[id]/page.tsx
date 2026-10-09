@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import axios from "axios";
 import Cropper from "react-easy-crop";
 import {
   Play,
@@ -24,6 +23,7 @@ import { useAudio, Track } from "../../../context/AudioContext";
 import { useAuth } from "../../../context/AuthContext";
 import { useTheme } from "../../../context/ThemeContext";
 import getCroppedImg, { Area } from "../../../utils/cropImage";
+import api from "../../../utils/api";
 
 interface PlaylistData {
   id: number | string;
@@ -47,6 +47,7 @@ export default function PlaylistDetail() {
   const rawId = params?.id;
   const playlistId =
     typeof rawId === "string" ? rawId : Array.isArray(rawId) ? rawId[0] : "";
+
   const isLikedView = playlistId === "liked";
   const isUploadsView = playlistId === "uploads";
   const isSpecialView = isLikedView || isUploadsView;
@@ -66,7 +67,6 @@ export default function PlaylistDetail() {
   const [showMenu, setShowMenu] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState("");
-
   const [rawCoverSrc, setRawCoverSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -76,11 +76,14 @@ export default function PlaylistDetail() {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const activeDisplayName = user ? (user.displayName || user.username) : "Tune-fy User";
+  const activeDisplayName = user
+    ? user.displayName || user.username
+    : "Tune-fy User";
 
   const getAuthHeaders = useCallback(() => {
     const activeToken =
-      token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+      token ||
+      (typeof window !== "undefined" ? localStorage.getItem("token") : null);
     return activeToken ? { Authorization: `Bearer ${activeToken}` } : {};
   }, [token]);
 
@@ -92,7 +95,7 @@ export default function PlaylistDetail() {
       const headers = getAuthHeaders();
 
       if (isLikedView) {
-        const res = await axios.get("https://tunefy-backend.onrender.com/api/tracks", { headers });
+        const res = await api.get("/api/tracks", { headers });
         const allTracks: Track[] = res.data;
         const liked = allTracks.filter((t) => likedTrackIds.includes(t.id));
         setPlaylist({
@@ -102,7 +105,7 @@ export default function PlaylistDetail() {
           tracks: liked,
         });
       } else if (isUploadsView) {
-        const res = await axios.get("https://tunefy-backend.onrender.com/api/tracks", { headers });
+        const res = await api.get("/api/tracks", { headers });
         setPlaylist({
           id: "uploads",
           name: "Uploaded Songs",
@@ -115,7 +118,7 @@ export default function PlaylistDetail() {
           setPlaylist(null);
           return;
         }
-        const res = await axios.get(`https://tunefy-backend.onrender.com/api/playlists/${numId}`, { headers });
+        const res = await api.get(`/api/playlists/${numId}`, { headers });
         setPlaylist(res.data);
         setEditedTitle(res.data.name);
       }
@@ -148,13 +151,16 @@ export default function PlaylistDetail() {
       setIsEditingTitle(false);
       return;
     }
+
     try {
-      await axios.patch(
-        `https://tunefy-backend.onrender.com/api/playlists/${playlistId}`,
+      await api.patch(
+        `/api/playlists/${playlistId}`,
         { name: editedTitle.trim() },
         { headers: getAuthHeaders() }
       );
-      setPlaylist((prev) => (prev ? { ...prev, name: editedTitle.trim() } : prev));
+      setPlaylist((prev) =>
+        prev ? { ...prev, name: editedTitle.trim() } : prev
+      );
     } catch (err) {
       console.error("Failed to rename playlist:", err);
     } finally {
@@ -179,12 +185,18 @@ export default function PlaylistDetail() {
     if (!rawCoverSrc || !croppedAreaPixels || !playlistId) return;
     setIsUploadingCover(true);
     try {
-      const croppedBlob = await getCroppedImg(rawCoverSrc, croppedAreaPixels, false);
+      const croppedBlob = await getCroppedImg(
+        rawCoverSrc,
+        croppedAreaPixels,
+        false
+      );
       if (!croppedBlob) return;
+
       const formData = new FormData();
       formData.append("file", croppedBlob, "cover.jpg");
-      const res = await axios.post(
-        `https://tunefy-backend.onrender.com/api/playlists/${playlistId}/cover`,
+
+      const res = await api.post(
+        `/api/playlists/${playlistId}/cover`,
         formData,
         {
           headers: {
@@ -193,7 +205,10 @@ export default function PlaylistDetail() {
           },
         }
       );
-      setPlaylist((prev) => (prev ? { ...prev, coverUrl: res.data.coverUrl } : prev));
+
+      setPlaylist((prev) =>
+        prev ? { ...prev, coverUrl: res.data.coverUrl } : prev
+      );
       setRawCoverSrc(null);
     } catch (err) {
       console.error("Failed to upload playlist cover:", err);
@@ -204,14 +219,21 @@ export default function PlaylistDetail() {
 
   const handleRemoveTrack = async (trackId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+
     if (isLikedView) {
       await toggleLike(trackId);
       return;
     }
+
     if (isUploadsView) {
-      if (!confirm("Are you sure you want to permanently delete this uploaded track?")) return;
+      if (
+        !confirm(
+          "Are you sure you want to permanently delete this uploaded track?"
+        )
+      )
+        return;
       try {
-        await axios.delete(`https://tunefy-backend.onrender.com/api/tracks/${trackId}`, {
+        await api.delete(`/api/tracks/${trackId}`, {
           headers: getAuthHeaders(),
         });
         fetchPlaylistData();
@@ -220,8 +242,9 @@ export default function PlaylistDetail() {
       }
       return;
     }
+
     try {
-      await axios.delete(`https://tunefy-backend.onrender.com/api/playlists/${playlistId}/tracks/${trackId}`, {
+      await api.delete(`/api/playlists/${playlistId}/tracks/${trackId}`, {
         headers: getAuthHeaders(),
       });
       fetchPlaylistData();
@@ -232,9 +255,11 @@ export default function PlaylistDetail() {
 
   const handleDeletePlaylist = async () => {
     if (isSpecialView || !playlistId) return;
-    if (!confirm(`Are you sure you want to delete "${playlist?.name}"?`)) return;
+    if (!confirm(`Are you sure you want to delete "${playlist?.name}"?`))
+      return;
+
     try {
-      await axios.delete(`https://tunefy-backend.onrender.com/api/playlists/${playlistId}`, {
+      await api.delete(`/api/playlists/${playlistId}`, {
         headers: getAuthHeaders(),
       });
       router.push("/");
@@ -246,7 +271,10 @@ export default function PlaylistDetail() {
 
   const totalDurationString = useMemo(() => {
     if (!playlist || playlist.tracks.length === 0) return "0 min";
-    const totalSecs = playlist.tracks.reduce((acc, t) => acc + (t.duration || 210), 0);
+    const totalSecs = playlist.tracks.reduce(
+      (acc, t) => acc + (t.duration || 0),
+      0
+    );
     const mins = Math.floor(totalSecs / 60);
     return `${mins} min`;
   }, [playlist]);
@@ -265,12 +293,15 @@ export default function PlaylistDetail() {
     }
   };
 
-  const contrastIconText = themeKey === "white" ? "fill-black text-black" : "fill-black text-black";
+  const contrastIconText =
+    themeKey === "white" ? "fill-black text-black" : "fill-black text-black";
 
   if (loading) {
     return (
       <div className="flex-1 flex flex-col min-h-0 bg-[#121212] items-center justify-center">
-        <div className="text-neutral-400 font-bold animate-pulse">Loading playlist...</div>
+        <div className="text-neutral-400 font-bold animate-pulse">
+          Loading playlist...
+        </div>
       </div>
     );
   }
@@ -278,7 +309,9 @@ export default function PlaylistDetail() {
   if (!playlist) {
     return (
       <div className="flex-1 flex flex-col min-h-0 bg-[#121212] items-center justify-center p-8">
-        <h2 className="text-xl font-bold text-white mb-2">Playlist not found</h2>
+        <h2 className="text-xl font-bold text-white mb-2">
+          Playlist not found
+        </h2>
         <button
           onClick={() => router.push("/")}
           className="px-4 py-2 bg-white text-black font-semibold text-xs rounded-full hover:scale-105 transition"
@@ -312,7 +345,6 @@ export default function PlaylistDetail() {
               <X className="w-5 h-5" />
             </button>
             <h3 className="text-lg font-bold mb-4">Crop Playlist Artwork</h3>
-
             <div
               style={{ borderColor: currentTheme.primary }}
               className="relative w-56 h-56 mx-auto rounded-lg overflow-hidden bg-neutral-900 border-2 mb-4"
@@ -329,7 +361,6 @@ export default function PlaylistDetail() {
                 onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
               />
             </div>
-
             <div className="flex items-center gap-2 mb-6">
               <ZoomIn className="w-4 h-4 text-neutral-400" />
               <input
@@ -340,7 +371,7 @@ export default function PlaylistDetail() {
                 value={zoom}
                 onChange={(e) => setZoom(parseFloat(e.target.value))}
                 style={{ accentColor: currentTheme.primary }}
-                className="w-full h-1 bg-neutral-600 rounded-lg appearance-none cursor-pointer"
+                className="w-full h-1 bg-neutral-600 rounded-lg cursor-pointer appearance-none"
               />
               <button
                 type="button"
@@ -354,7 +385,6 @@ export default function PlaylistDetail() {
                 <RotateCcw className="w-4 h-4" />
               </button>
             </div>
-
             <div className="flex gap-2">
               <button
                 onClick={() => setRawCoverSrc(null)}
@@ -384,7 +414,8 @@ export default function PlaylistDetail() {
       >
         <div
           onClick={() => {
-            if (!isSpecialView && fileInputRef.current) fileInputRef.current.click();
+            if (!isSpecialView && fileInputRef.current)
+              fileInputRef.current.click();
           }}
           className={`w-48 h-48 sm:w-56 sm:h-56 rounded-md shadow-2xl overflow-hidden bg-neutral-800 flex items-center justify-center flex-shrink-0 relative group ${
             !isSpecialView ? "cursor-pointer" : ""
@@ -417,7 +448,6 @@ export default function PlaylistDetail() {
           ) : (
             <Music2 className="w-20 h-20 text-neutral-600" />
           )}
-
           {!isSpecialView && (
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1.5 transition text-white">
               <Camera className="w-8 h-8" />
@@ -430,7 +460,6 @@ export default function PlaylistDetail() {
           <span className="text-xs font-bold uppercase tracking-wider text-white/80">
             {isSpecialView ? "Collection" : "Playlist"}
           </span>
-
           {isEditingTitle ? (
             <input
               type="text"
@@ -467,7 +496,8 @@ export default function PlaylistDetail() {
             </span>
             <span>•</span>
             <span>
-              {playlist.tracks.length} {playlist.tracks.length === 1 ? "song" : "songs"}
+              {playlist.tracks.length}{" "}
+              {playlist.tracks.length === 1 ? "song" : "songs"}
             </span>
             <span>•</span>
             <span className="text-neutral-400">{totalDurationString}</span>
@@ -594,7 +624,9 @@ export default function PlaylistDetail() {
                     />
                     <div className="overflow-hidden">
                       <p
-                        style={{ color: isCurrent ? currentTheme.primary : "white" }}
+                        style={{
+                          color: isCurrent ? currentTheme.primary : "white",
+                        }}
                         className="text-sm font-semibold truncate"
                       >
                         {track.title}
@@ -622,7 +654,9 @@ export default function PlaylistDetail() {
                         className="w-3.5 h-3.5"
                         style={{
                           fill: isLiked ? currentTheme.primary : "none",
-                          color: isLiked ? currentTheme.primary : "currentColor",
+                          color: isLiked
+                            ? currentTheme.primary
+                            : "currentColor",
                         }}
                       />
                     </button>
@@ -630,7 +664,9 @@ export default function PlaylistDetail() {
                     <button
                       onClick={(e) => handleRemoveTrack(track.id, e)}
                       className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition"
-                      title={isUploadsView ? "Delete track" : "Remove from playlist"}
+                      title={
+                        isUploadsView ? "Delete track" : "Remove from playlist"
+                      }
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
