@@ -78,6 +78,7 @@ export default function Home() {
   const activeDisplayName = user ? (user.displayName || user.username) : "";
 
   // Compute displayed tracks
+  // Compute displayed tracks
   const displayedTracks = useMemo(() => {
     if (!user) {
       return tracks;
@@ -89,7 +90,8 @@ export default function Home() {
         .filter((t): t is Track => t !== undefined);
       if (resolved.length > 0) return resolved.slice(0, 18);
     }
-    return tracks.slice(0, 18);
+    // For logged-in users with no playback history, do NOT fall back to demo tracks
+    return [];
   }, [user, tracks, recentTrackIds]);
 
   const handleOpenUpload = () => {
