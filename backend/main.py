@@ -112,6 +112,8 @@ engine = create_engine(
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+Base = declarative_base()
+
 playlist_tracks = Table(
     "playlist_tracks",
     Base.metadata,
@@ -543,6 +545,17 @@ def delete_account(
     current_user = get_current_user_optional(authorization, db)
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # 1. Clear user playlists and junction associations in playlist_tracks
+    user_playlists = db.query(DBPlaylist).filter(DBPlaylist.user_id == current_user.id).all()
+    for pl in user_playlists:
+        pl.tracks.clear()
+        db.delete(pl)
+
+    # 2. Delete liked track entries safely
+    db.query(DBLikedTrack).filter(DBLikedTrack.user_id == current_user.id).delete(synchronize_session=False)
+
+    # 3. Clean up physical files and track records uploaded by the user
     user_tracks = db.query(DBTrack).filter(DBTrack.user_id == current_user.id).all()
     for t in user_tracks:
         if t.audio_url and "/static/" in t.audio_url:
@@ -560,8 +573,8 @@ def delete_account(
                 except Exception:
                     pass
         db.delete(t)
-    db.query(DBLikedTrack).filter(DBLikedTrack.user_id == current_user.id).delete()
-    db.query(DBPlaylist).filter(DBPlaylist.user_id == current_user.id).delete()
+
+    # 4. Delete user account
     db.delete(current_user)
     db.commit()
     return {"status": "deleted"}
@@ -672,12 +685,8 @@ def get_tracks(
     ensure_demo_tracks(db)
 
     if current_user:
-        # User sees their uploaded tracks
-        user_tracks = db.query(DBTrack).filter(DBTrack.user_id == current_user.id).all()
-        # If user has not uploaded anything yet, provide demo tracks as fallback preview
-        if not user_tracks:
-            user_tracks = db.query(DBTrack).filter(DBTrack.user_id == None).all()
-        tracks = user_tracks
+        # Strictly return tracks uploaded by this user (empty list if none uploaded yet)
+        tracks = db.query(DBTrack).filter(DBTrack.user_id == current_user.id).all()
     else:
         # Guests see demo tracks
         tracks = db.query(DBTrack).filter(DBTrack.user_id == None).all()
@@ -695,7 +704,6 @@ def get_tracks(
         }
         for t in tracks
     ]
-
 @app.post("/api/tracks/upload")
 @app.post("/api/upload")
 def upload_track(
