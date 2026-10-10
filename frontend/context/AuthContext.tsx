@@ -1,19 +1,15 @@
 "use client";
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-} from "react";
-import api from "../utils/api";
+
+import React, { createContext, useContext, useState, useEffect } from "react";
+import api from "@/utils/api";
 
 export interface User {
   id: number;
   username: string;
   email: string;
-  displayName?: string;
-  avatarUrl?: string | null;
+  displayName: string;
+  avatarUrl?: string;
+  security_question?: string;
 }
 
 interface AuthContextType {
@@ -31,12 +27,13 @@ interface AuthContextType {
     username: string,
     email: string,
     password: string,
-    securityQuestion?: string,
-    securityAnswer?: string
+    security_question?: string,
+    security_answer?: string
   ) => Promise<void>;
   logout: () => void;
+  updateProfile: (data: { displayName?: string; username?: string }) => Promise<void>;
+  updateAvatar: (file: File) => Promise<void>;
   deleteAccount: () => Promise<void>;
-  updateUser: (updatedUser: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,64 +41,43 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-// 1. Auto-verify token on startup, tab focus, and page visibility
-useEffect(() => {
-  const checkAuthStatus = async () => {
-    const savedToken = localStorage.getItem("token");
-    const savedUser = localStorage.getItem("user");
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      const savedToken = localStorage.getItem("token");
+      const savedUser = localStorage.getItem("user");
 
-    if (savedToken && savedUser) {
-      try {
-        setToken(savedToken);
-        setUser(JSON.parse(savedUser));
+      if (savedToken && savedUser) {
+        try {
+          setToken(savedToken);
+          setUser(JSON.parse(savedUser));
 
-        // Ping backend to confirm user still exists in database
-        const res = await api.get("/api/auth/me");
-        setUser(res.data);
-        localStorage.setItem("user", JSON.stringify(res.data));
-      } catch (err: any) {
-        // Account was deleted on another device or token expired -> instant clean logout
-        if (err?.response?.status === 401 || err?.response?.status === 404) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          setToken(null);
-          setUser(null);
+          // Confirm user still exists on backend/Supabase
+          const res = await api.get("/api/auth/me");
+          setUser(res.data);
+          localStorage.setItem("user", JSON.stringify(res.data));
+        } catch (err) {
+          const status = (err as { response?: { status?: number } })?.response?.status;
+          if (status === 401 || status === 404) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            setToken(null);
+            setUser(null);
+          }
         }
       }
-    }
-    setIsLoading(false);
-  };
+      setIsLoading(false);
+    };
 
-  checkAuthStatus();
+    checkAuthStatus();
 
-  // Listen for window focus: when you switch from your phone back to your laptop
-  window.addEventListener("focus", checkAuthStatus);
-  return () => window.removeEventListener("focus", checkAuthStatus);
-}, []);
-
-// 2. Graceful deleteAccount: wipes local session even if already deleted on another device
-const deleteAccount = async () => {
-  const activeToken =
-    token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
-
-  if (!activeToken) {
-    logout();
-    return;
-  }
-
-  try {
-    await api.delete("/api/auth/account");
-  } catch (err: any) {
-    // If phone already deleted it (401 or 404), do not throw an alert!
-    console.warn("Account was already deleted remotely:", err?.response?.status);
-  } finally {
-    logout();
-  }
-};
+    // Re-verify authentication state when returning to this browser window
+    window.addEventListener("focus", checkAuthStatus);
+    return () => window.removeEventListener("focus", checkAuthStatus);
+  }, []);
 
   const openAuthModal = () => setIsAuthModalOpen(true);
   const closeAuthModal = () => setIsAuthModalOpen(false);
@@ -124,15 +100,15 @@ const deleteAccount = async () => {
     username: string,
     email: string,
     password: string,
-    securityQuestion?: string,
-    securityAnswer?: string
+    security_question?: string,
+    security_answer?: string
   ) => {
     const res = await api.post("/api/auth/register", {
       username,
       email,
       password,
-      security_question: securityQuestion,
-      security_answer: securityAnswer,
+      security_question,
+      security_answer,
     });
     const { token: jwtToken, user: userData } = res.data;
     setToken(jwtToken);
@@ -141,37 +117,49 @@ const deleteAccount = async () => {
     localStorage.setItem("user", JSON.stringify(userData));
   };
 
-  const logout = useCallback(() => {
-    setUser(null);
-    setToken(null);
+  const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-  }, []);
+    setToken(null);
+    setUser(null);
+  };
 
-const deleteAccount = async () => {
-  const activeToken =
-    token ||
-    (typeof window !== "undefined" ? localStorage.getItem("token") : null);
-  if (!activeToken) {
-    logout();
-    return;
-  }
-  try {
-    await api.delete("/api/auth/account");
-  } catch (err: any) {
-    console.warn("Account delete response:", err?.response?.status);
-  } finally {
-    logout();
-  }
-};
+  const updateProfile = async (data: { displayName?: string; username?: string }) => {
+    const res = await api.patch("/api/auth/profile", data);
+    setUser(res.data);
+    localStorage.setItem("user", JSON.stringify(res.data));
+  };
 
-  const updateUser = (updatedUser: Partial<User>) => {
-    setUser((prev) => {
-      if (!prev) return null;
-      const merged = { ...prev, ...updatedUser };
-      localStorage.setItem("user", JSON.stringify(merged));
-      return merged;
+  const updateAvatar = async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await api.post("/api/auth/avatar", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
     });
+    if (res.data.avatarUrl && user) {
+      const updatedUser = { ...user, avatarUrl: res.data.avatarUrl };
+      setUser(updatedUser);
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+    }
+  };
+
+  const deleteAccount = async () => {
+    const activeToken =
+      token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+
+    if (!activeToken) {
+      logout();
+      return;
+    }
+
+    try {
+      await api.delete("/api/auth/account");
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      console.warn("Account was already deleted remotely:", status);
+    } finally {
+      logout();
+    }
   };
 
   return (
@@ -189,8 +177,9 @@ const deleteAccount = async () => {
         login,
         register,
         logout,
+        updateProfile,
+        updateAvatar,
         deleteAccount,
-        updateUser,
       }}
     >
       {children}
@@ -198,15 +187,10 @@ const deleteAccount = async () => {
   );
 }
 
-export function useAudioContextHook() {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used inside AuthProvider");
-  return context;
-}
-
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context)
-    throw new Error("useAuth must be used inside an AuthProvider");
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
   return context;
 }
