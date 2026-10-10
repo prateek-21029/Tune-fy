@@ -48,37 +48,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
 
+// 1. Auto-verify token on startup, tab focus, and page visibility
 useEffect(() => {
-  const savedToken = localStorage.getItem("token");
-  const savedUser = localStorage.getItem("user");
+  const checkAuthStatus = async () => {
+    const savedToken = localStorage.getItem("token");
+    const savedUser = localStorage.getItem("user");
 
-  if (savedToken && savedUser) {
-    try {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-      
-      // Verify token is still valid on backend
-      api.get("/api/auth/me")
-        .then((res) => {
-          setUser(res.data);
-          localStorage.setItem("user", JSON.stringify(res.data));
-        })
-        .catch(() => {
-          // Account was deleted on another device or token expired
+    if (savedToken && savedUser) {
+      try {
+        setToken(savedToken);
+        setUser(JSON.parse(savedUser));
+
+        // Ping backend to confirm user still exists in database
+        const res = await api.get("/api/auth/me");
+        setUser(res.data);
+        localStorage.setItem("user", JSON.stringify(res.data));
+      } catch (err: any) {
+        // Account was deleted on another device or token expired -> instant clean logout
+        if (err?.response?.status === 401 || err?.response?.status === 404) {
           localStorage.removeItem("token");
           localStorage.removeItem("user");
           setToken(null);
           setUser(null);
-        });
-    } catch {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      setToken(null);
-      setUser(null);
+        }
+      }
     }
-  }
-  setIsLoading(false);
+    setIsLoading(false);
+  };
+
+  checkAuthStatus();
+
+  // Listen for window focus: when you switch from your phone back to your laptop
+  window.addEventListener("focus", checkAuthStatus);
+  return () => window.removeEventListener("focus", checkAuthStatus);
 }, []);
+
+// 2. Graceful deleteAccount: wipes local session even if already deleted on another device
+const deleteAccount = async () => {
+  const activeToken =
+    token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+
+  if (!activeToken) {
+    logout();
+    return;
+  }
+
+  try {
+    await api.delete("/api/auth/account");
+  } catch (err: any) {
+    // If phone already deleted it (401 or 404), do not throw an alert!
+    console.warn("Account was already deleted remotely:", err?.response?.status);
+  } finally {
+    logout();
+  }
+};
 
   const openAuthModal = () => setIsAuthModalOpen(true);
   const closeAuthModal = () => setIsAuthModalOpen(false);
