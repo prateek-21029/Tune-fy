@@ -110,7 +110,7 @@ export default function PlaylistDetail() {
         // Strictly keep tracks belonging to this logged-in user (excludes demo tracks where userId is null/undefined)
         const userOnlyTracks = user 
           ? allTracks.filter((t) => t.userId != null && String(t.userId) === String(user.id))
-        : [];
+          : [];
 
         setPlaylist({
           id: "uploads",
