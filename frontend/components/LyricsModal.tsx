@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef, useMemo } from "react";
 import axios from "axios";
 import { X, Music } from "lucide-react";
 import { useAudio } from "../context/AudioContext";
+import { useTheme } from "../context/ThemeContext";
 
 interface LyricLine {
   time: number;
@@ -33,6 +34,7 @@ function parseLrc(lrcText: string): LyricLine[] {
 
 export default function LyricsModal() {
   const { currentTrack, currentTime, isLyricsOpen, toggleLyrics, seek } = useAudio();
+  const { currentTheme } = useTheme();
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
   const [plainLyrics, setPlainLyrics] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -41,8 +43,8 @@ export default function LyricsModal() {
 
   useEffect(() => {
     if (!currentTrack || !isLyricsOpen) return;
-
     let isMounted = true;
+
     const fetchLyrics = async () => {
       setLoading(true);
       try {
@@ -74,7 +76,6 @@ export default function LyricsModal() {
     };
   }, [currentTrack?.id, isLyricsOpen]);
 
-  // Determine current active lyric index
   const activeIndex = useMemo(() => {
     if (lyrics.length === 0) return -1;
     let idx = -1;
@@ -88,7 +89,6 @@ export default function LyricsModal() {
     return idx;
   }, [lyrics, currentTime]);
 
-  // Smooth auto-scroll active lyric into center view
   useEffect(() => {
     if (activeLineRef.current && containerRef.current) {
       activeLineRef.current.scrollIntoView({
@@ -101,10 +101,10 @@ export default function LyricsModal() {
   if (!isLyricsOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#121212]/95 backdrop-blur-md flex flex-col p-8 select-none">
+    <div className="fixed inset-0 z-50 bg-[#121212]/95 backdrop-blur-xl flex flex-col p-6 md:p-8 select-none transition-all duration-300">
       <div className="flex items-center justify-between mb-6 max-w-4xl mx-auto w-full">
         <div className="flex items-center gap-3">
-          <Music className="w-5 h-5 text-[#3b82f6]" />
+          <Music className="w-5 h-5" style={{ color: currentTheme.primary }} />
           <div>
             <h2 className="text-lg font-bold text-white leading-tight">
               {currentTrack?.title || "Lyrics"}
@@ -114,7 +114,7 @@ export default function LyricsModal() {
         </div>
         <button
           onClick={toggleLyrics}
-          className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition"
+          className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition active:scale-95"
           title="Close lyrics"
         >
           <X className="w-5 h-5" />
@@ -123,7 +123,7 @@ export default function LyricsModal() {
 
       <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto max-w-4xl mx-auto w-full px-4 text-center space-y-6 py-20"
+        className="flex-1 overflow-y-auto max-w-4xl mx-auto w-full px-4 text-center space-y-6 py-20 scrollbar-thin scrollbar-thumb-white/10"
       >
         {loading ? (
           <p className="text-neutral-400 animate-pulse text-sm">Searching for lyrics...</p>
@@ -135,10 +135,14 @@ export default function LyricsModal() {
                 key={idx}
                 ref={isActive ? activeLineRef : null}
                 onClick={() => seek(line.time)}
-                className={`text-2xl md:text-3xl font-extrabold cursor-pointer transition-all duration-300 ${
+                style={{
+                  color: isActive ? currentTheme.primary : undefined,
+                  textShadow: isActive ? `0 0 20px ${currentTheme.primary}40` : "none",
+                }}
+                className={`text-2xl md:text-3xl font-extrabold cursor-pointer transition-all duration-300 transform ${
                   isActive
-                    ? "text-[#3b82f6] scale-105"
-                    : "text-neutral-500 hover:text-neutral-300"
+                    ? "scale-105 font-black opacity-100"
+                    : "text-neutral-500 hover:text-neutral-300 opacity-60 hover:opacity-90"
                 }`}
               >
                 {line.text}
@@ -146,7 +150,7 @@ export default function LyricsModal() {
             );
           })
         ) : plainLyrics ? (
-          <div className="text-lg text-neutral-300 leading-loose whitespace-pre-line font-medium">
+          <div className="text-lg text-neutral-300 leading-loose whitespace-pre-line font-medium max-w-2xl mx-auto">
             {plainLyrics}
           </div>
         ) : (

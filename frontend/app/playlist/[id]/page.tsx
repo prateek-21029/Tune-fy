@@ -107,20 +107,18 @@ export default function PlaylistDetail() {
       } else if (isUploadsView) {
         const res = await api.get("/api/tracks", { headers });
         const allTracks: Track[] = Array.isArray(res.data) ? res.data : [];
-        // Strictly keep tracks belonging to this logged-in user (excludes demo tracks where userId is null/undefined)
-        const userOnlyTracks = user 
-          ? allTracks.filter((t) => t.userId != null && String(t.userId) === String(user.id))
+        const userOnlyTracks = user
+          ? allTracks.filter(
+              (t) => t.userId != null && String(t.userId) === String(user.id)
+            )
           : [];
-
         setPlaylist({
           id: "uploads",
           name: "Uploaded Songs",
           coverUrl: null,
           tracks: userOnlyTracks,
         });
-}
-      
-      else {
+      } else {
         const numId = parseInt(playlistId, 10);
         if (isNaN(numId)) {
           setPlaylist(null);
@@ -136,7 +134,7 @@ export default function PlaylistDetail() {
     } finally {
       setLoading(false);
     }
-  }, [playlistId, isLikedView, isUploadsView, likedTrackIds, getAuthHeaders]);
+  }, [playlistId, isLikedView, isUploadsView, likedTrackIds, getAuthHeaders, user]);
 
   useEffect(() => {
     if (playlistId && playlistId !== "undefined") {
@@ -159,12 +157,11 @@ export default function PlaylistDetail() {
       setIsEditingTitle(false);
       return;
     }
-
     try {
       await api.patch(
         `/api/playlists/${playlistId}`,
         { name: editedTitle.trim() },
-        { headers: getAuthHeaders() }
+        { headers: getAuthHeaders()}
       );
       setPlaylist((prev) =>
         prev ? { ...prev, name: editedTitle.trim() } : prev
@@ -193,11 +190,7 @@ export default function PlaylistDetail() {
     if (!rawCoverSrc || !croppedAreaPixels || !playlistId) return;
     setIsUploadingCover(true);
     try {
-      const croppedBlob = await getCroppedImg(
-        rawCoverSrc,
-        croppedAreaPixels,
-        false
-      );
+      const croppedBlob = await getCroppedImg(rawCoverSrc, croppedAreaPixels, false);
       if (!croppedBlob) return;
 
       const formData = new FormData();
@@ -213,7 +206,6 @@ export default function PlaylistDetail() {
           },
         }
       );
-
       setPlaylist((prev) =>
         prev ? { ...prev, coverUrl: res.data.coverUrl } : prev
       );
@@ -227,7 +219,6 @@ export default function PlaylistDetail() {
 
   const handleRemoveTrack = async (trackId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-
     if (isLikedView) {
       await toggleLike(trackId);
       return;
@@ -263,8 +254,7 @@ export default function PlaylistDetail() {
 
   const handleDeletePlaylist = async () => {
     if (isSpecialView || !playlistId) return;
-    if (!confirm(`Are you sure you want to delete "${playlist?.name}"?`))
-      return;
+    if (!confirm(`Are you sure you want to delete "${playlist?.name}"?`)) return;
 
     try {
       await api.delete(`/api/playlists/${playlistId}`, {
@@ -307,7 +297,7 @@ export default function PlaylistDetail() {
   if (loading) {
     return (
       <div className="flex-1 flex flex-col min-h-0 bg-[#121212] items-center justify-center">
-        <div className="text-neutral-400 font-bold animate-pulse">
+        <div className="text-neutral-400 font-bold animate-pulse text-sm">
           Loading playlist...
         </div>
       </div>
@@ -317,9 +307,7 @@ export default function PlaylistDetail() {
   if (!playlist) {
     return (
       <div className="flex-1 flex flex-col min-h-0 bg-[#121212] items-center justify-center p-8">
-        <h2 className="text-xl font-bold text-white mb-2">
-          Playlist not found
-        </h2>
+        <h2 className="text-xl font-bold text-white mb-2">Playlist not found</h2>
         <button
           onClick={() => router.push("/")}
           className="px-4 py-2 bg-white text-black font-semibold text-xs rounded-full hover:scale-105 transition"
@@ -331,9 +319,8 @@ export default function PlaylistDetail() {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[#121212] select-none overflow-y-auto">
+    <div className="flex-1 flex flex-col min-h-0 bg-[#121212] select-none overflow-y-auto animate-in fade-in duration-300">
       <TopHeader />
-
       <input
         type="file"
         ref={fileInputRef}
@@ -344,7 +331,7 @@ export default function PlaylistDetail() {
 
       {/* Playlist Square Easy-Cropper Modal */}
       {rawCoverSrc && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#282828] border border-neutral-700 rounded-2xl w-full max-w-sm p-6 relative shadow-2xl text-white">
             <button
               onClick={() => setRawCoverSrc(null)}
@@ -369,6 +356,7 @@ export default function PlaylistDetail() {
                 onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
               />
             </div>
+
             <div className="flex items-center gap-2 mb-6">
               <ZoomIn className="w-4 h-4 text-neutral-400" />
               <input
@@ -393,6 +381,7 @@ export default function PlaylistDetail() {
                 <RotateCcw className="w-4 h-4" />
               </button>
             </div>
+
             <div className="flex gap-2">
               <button
                 onClick={() => setRawCoverSrc(null)}
@@ -413,19 +402,19 @@ export default function PlaylistDetail() {
         </div>
       )}
 
-      {/* Hero Banner */}
+      {/* Hero Banner with Smooth Depth */}
       <div
         style={{
-          background: `linear-gradient(to bottom, ${currentTheme.gradientFrom}55 0%, #171717 55%, #121212 100%)`,
+          background: `linear-gradient(to bottom, ${currentTheme.gradientFrom}55 0%, #171717 65%, #121212 100%)`,
         }}
-        className="px-8 pt-6 pb-8 flex flex-col sm:flex-row items-end gap-6"
+        className="px-6 md:px-8 pt-6 pb-8 flex flex-col sm:flex-row items-center sm:items-end gap-6 transition-colors duration-500"
       >
         <div
           onClick={() => {
             if (!isSpecialView && fileInputRef.current)
               fileInputRef.current.click();
           }}
-          className={`w-48 h-48 sm:w-56 sm:h-56 rounded-md shadow-2xl overflow-hidden bg-neutral-800 flex items-center justify-center flex-shrink-0 relative group ${
+          className={`w-48 h-48 sm:w-56 sm:h-56 rounded-md shadow-2xl overflow-hidden bg-neutral-800 flex items-center justify-center flex-shrink-0 relative group transition-transform duration-300 hover:scale-[1.02] ${
             !isSpecialView ? "cursor-pointer" : ""
           }`}
         >
@@ -436,7 +425,7 @@ export default function PlaylistDetail() {
               }}
               className="w-full h-full flex items-center justify-center"
             >
-              <Heart className="w-20 h-20 text-white fill-white shadow-xl" />
+              <Heart className="w-20 h-20 text-white fill-white shadow-xl animate-pulse" />
             </div>
           ) : isUploadsView ? (
             <div
@@ -456,18 +445,20 @@ export default function PlaylistDetail() {
           ) : (
             <Music2 className="w-20 h-20 text-neutral-600" />
           )}
+
           {!isSpecialView && (
-            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1.5 transition text-white">
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1.5 transition duration-200 text-white">
               <Camera className="w-8 h-8" />
               <span className="text-xs font-semibold">Choose photo</span>
             </div>
           )}
         </div>
 
-        <div className="flex flex-col gap-2 flex-1">
+        <div className="flex flex-col gap-2 flex-1 text-center sm:text-left">
           <span className="text-xs font-bold uppercase tracking-wider text-white/80">
             {isSpecialView ? "Collection" : "Playlist"}
           </span>
+
           {isEditingTitle ? (
             <input
               type="text"
@@ -487,9 +478,9 @@ export default function PlaylistDetail() {
               onClick={() => {
                 if (!isSpecialView) setIsEditingTitle(true);
               }}
-              className="flex items-center gap-3 group cursor-pointer"
+              className="flex items-center justify-center sm:justify-start gap-3 group cursor-pointer"
             >
-              <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight">
+              <h1 className="text-3xl sm:text-6xl font-black text-white tracking-tight">
                 {playlist.name}
               </h1>
               {!isSpecialView && (
@@ -498,7 +489,7 @@ export default function PlaylistDetail() {
             </div>
           )}
 
-          <div className="flex items-center gap-2 text-xs font-medium text-neutral-300 mt-2">
+          <div className="flex items-center justify-center sm:justify-start gap-2 text-xs font-medium text-neutral-300 mt-2">
             <span className="font-bold text-white hover:underline cursor-pointer">
               {activeDisplayName}
             </span>
@@ -514,7 +505,7 @@ export default function PlaylistDetail() {
       </div>
 
       {/* Action Bar */}
-      <div className="px-8 py-4 flex items-center gap-4">
+      <div className="px-6 md:px-8 py-4 flex items-center gap-4">
         <button
           onClick={handleMainPlay}
           disabled={playlist.tracks.length === 0}
@@ -538,8 +529,9 @@ export default function PlaylistDetail() {
             >
               <MoreHorizontal className="w-6 h-6" />
             </button>
+
             {showMenu && (
-              <div className="absolute left-0 mt-2 w-48 bg-[#282828] border border-neutral-700 rounded-lg p-1 shadow-2xl z-40">
+              <div className="absolute left-0 mt-2 w-48 bg-[#282828] border border-neutral-700 rounded-lg p-1 shadow-2xl z-40 animate-in fade-in zoom-in-95 duration-150">
                 <button
                   onClick={handleDeletePlaylist}
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-400 hover:bg-neutral-700/80 rounded transition text-left"
@@ -553,13 +545,13 @@ export default function PlaylistDetail() {
         )}
       </div>
 
-      {/* Tracks Table */}
-      <div className="px-8 pb-12">
+      {/* Tracks Table with Staggered Visual Feel */}
+      <div className="px-4 md:px-8 pb-16">
         <div className="grid grid-cols-12 text-xs font-bold text-neutral-400 uppercase tracking-wider border-b border-white/10 pb-2 mb-3 px-3">
           <div className="col-span-1 text-center">#</div>
           <div className="col-span-6">Title</div>
-          <div className="col-span-4">Artist</div>
-          <div className="col-span-1 flex justify-end">
+          <div className="col-span-4 hidden sm:block">Artist</div>
+          <div className="col-span-5 sm:col-span-1 flex justify-end">
             <Clock className="w-4 h-4" />
           </div>
         </div>
@@ -580,7 +572,7 @@ export default function PlaylistDetail() {
                 <div
                   key={track.id}
                   onClick={() => playTrack(track, playlist.tracks)}
-                  className={`grid grid-cols-12 items-center p-2 rounded-md hover:bg-white/10 transition group cursor-pointer ${
+                  className={`grid grid-cols-12 items-center p-2 rounded-md hover:bg-white/10 transition-all duration-200 group cursor-pointer ${
                     isCurrent ? "bg-white/5" : ""
                   }`}
                 >
@@ -628,7 +620,7 @@ export default function PlaylistDetail() {
                     <img
                       src={track.coverUrl}
                       alt={track.title}
-                      className="w-10 h-10 rounded object-cover flex-shrink-0"
+                      className="w-10 h-10 rounded object-cover flex-shrink-0 shadow"
                     />
                     <div className="overflow-hidden">
                       <p
@@ -662,18 +654,20 @@ export default function PlaylistDetail() {
                         className="w-3.5 h-3.5"
                         style={{
                           fill: isLiked ? currentTheme.primary : "none",
-                          color: isLiked
-                            ? currentTheme.primary
-                            : "currentColor",
+                          color: isLiked ? currentTheme.primary : "currentColor",
                         }}
                       />
                     </button>
+
                     <span>{formatDuration(track.duration || 0)}</span>
+
                     <button
                       onClick={(e) => handleRemoveTrack(track.id, e)}
                       className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition"
                       title={
-                        isUploadsView ? "Delete track" : "Remove from playlist"
+                        isUploadsView
+                          ? "Delete track"
+                          : "Remove from playlist"
                       }
                     >
                       <Trash2 className="w-3.5 h-3.5" />

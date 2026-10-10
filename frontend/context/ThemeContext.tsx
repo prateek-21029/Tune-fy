@@ -7,11 +7,11 @@ export type ThemeKey = "green" | "blue" | "orange" | "red" | "white" | "pink";
 export interface ThemeConfig {
   key: ThemeKey;
   label: string;
-  primary: string;       // Main accent (e.g. #3b82f6)
-  hover: string;         // Hover state
-  textAccent: string;    // Contrast text if needed
-  gradientFrom: string;  // Scrubber/Banner start
-  gradientTo: string;    // Scrubber/Banner end
+  primary: string;
+  hover: string;
+  textAccent: string;
+  gradientFrom: string;
+  gradientTo: string;
 }
 
 export const THEMES: Record<ThemeKey, ThemeConfig> = {
@@ -89,6 +89,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  useEffect(() => {
+    const theme = THEMES[themeKey] || THEMES.blue;
+    if (typeof document !== "undefined") {
+      document.documentElement.style.setProperty("--theme-primary", theme.primary);
+      document.documentElement.style.setProperty("--theme-hover", theme.hover);
+      document.documentElement.style.setProperty("--theme-gradient-from", theme.gradientFrom);
+      document.documentElement.style.setProperty("--theme-gradient-to", theme.gradientTo);
+    }
+  }, [themeKey]);
+
   const setTheme = (key: ThemeKey) => {
     setThemeKey(key);
     try {
@@ -100,7 +110,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     <ThemeContext.Provider
       value={{
         themeKey,
-        currentTheme: THEMES[themeKey],
+        currentTheme: THEMES[themeKey] || THEMES.blue,
         setTheme,
       }}
     >

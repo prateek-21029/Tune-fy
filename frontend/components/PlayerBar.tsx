@@ -58,7 +58,6 @@ export default function PlayerBar() {
   } = useAudio();
 
   const { currentTheme } = useTheme();
-
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [scrubTime, setScrubTime] = useState(0);
   const [prevVolume, setPrevVolume] = useState<number>(0.8);
@@ -74,7 +73,8 @@ export default function PlayerBar() {
 
   const isLiked = likedTrackIds.includes(currentTrack.id);
   const activeTime = isScrubbing ? scrubTime : currentTime;
-  const progressPercent = duration > 0 ? Math.min(100, Math.max(0, (activeTime / duration) * 100)) : 0;
+  const progressPercent =
+    duration > 0 ? Math.min(100, Math.max(0, (activeTime / duration) * 100)) : 0;
   const volumePercent = Math.min(100, Math.max(0, volume * 100));
 
   const handleScrubChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -96,17 +96,19 @@ export default function PlayerBar() {
   };
 
   const renderVolumeIcon = () => {
-    if (volume === 0) return <VolumeX className="w-4 h-4 text-neutral-400 hover:text-white" />;
-    if (volume < 0.5) return <Volume1 className="w-4 h-4 text-neutral-400 hover:text-white" />;
+    if (volume === 0)
+      return <VolumeX className="w-4 h-4 text-neutral-400 hover:text-white" />;
+    if (volume < 0.5)
+      return <Volume1 className="w-4 h-4 text-neutral-400 hover:text-white" />;
     return <Volume2 className="w-4 h-4 text-neutral-400 hover:text-white" />;
   };
 
   return (
     <>
-      {/* ======================================================== */}
-      {/* 1. MOBILE COMPACT BAR (Screens < 768px)                   */}
-      {/* ======================================================== */}
-      <div className="md:hidden fixed bottom-16 left-2 right-2 z-40 bg-[#181818]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden select-none">
+      {/* ============================================================== */}
+      {/* 1. MOBILE COMPACT BAR (Screens < 768px)                         */}
+      {/* ============================================================== */}
+      <div className="md:hidden fixed bottom-16 left-2 right-2 z-40 bg-[#181818]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden select-none transition-all">
         {/* Hairline Progress Bar */}
         <div className="w-full h-1 bg-white/10">
           <div
@@ -119,7 +121,7 @@ export default function PlayerBar() {
         </div>
 
         <div className="px-3 py-2 flex flex-col gap-1.5">
-          {/* Top row: Artwork, Title, Artist, Timestamp, and Like */}
+          {/* Top Row: Artwork, Title, Artist, Timestamp, and Like */}
           <div className="flex items-center justify-between gap-2">
             <div
               onClick={() => setIsMobileExpanded(true)}
@@ -146,7 +148,7 @@ export default function PlayerBar() {
 
             <button
               onClick={() => toggleLike(currentTrack.id)}
-              className="p-1.5 text-neutral-400 hover:text-white transition flex-shrink-0"
+              className="p-1.5 text-neutral-400 hover:text-white transition flex-shrink-0 active:scale-90"
             >
               <Heart
                 className="w-4 h-4"
@@ -158,19 +160,17 @@ export default function PlayerBar() {
             </button>
           </div>
 
-          {/* Bottom row: Exact requested controls order: Shuffle -> Prev -> Play -> Next -> Repeat */}
+          {/* Bottom Row Controls */}
           <div className="flex items-center justify-around pt-1 border-t border-white/5">
-            {/* 1. Shuffle */}
             <button
               onClick={toggleShuffle}
-              className="p-1.5 transition"
+              className="p-1.5 transition active:scale-90"
               style={{ color: isShuffle ? currentTheme.primary : "#9ca3af" }}
               title={isShuffle ? "Shuffle On" : "Shuffle Off"}
             >
               <Shuffle className="w-4 h-4" />
             </button>
 
-            {/* 2. Previous */}
             <button
               onClick={prevTrack}
               className="p-1.5 text-neutral-200 hover:text-white active:scale-90 transition"
@@ -179,7 +179,6 @@ export default function PlayerBar() {
               <SkipBack className="w-5 h-5 fill-current" />
             </button>
 
-            {/* 3. Play / Pause */}
             <button
               onClick={togglePlay}
               style={{ backgroundColor: currentTheme.primary }}
@@ -193,7 +192,6 @@ export default function PlayerBar() {
               )}
             </button>
 
-            {/* 4. Next */}
             <button
               onClick={nextTrack}
               className="p-1.5 text-neutral-200 hover:text-white active:scale-90 transition"
@@ -202,11 +200,12 @@ export default function PlayerBar() {
               <SkipForward className="w-5 h-5 fill-current" />
             </button>
 
-            {/* 5. Loop / Repeat */}
             <button
               onClick={toggleRepeat}
-              className="p-1.5 transition"
-              style={{ color: repeatMode !== "off" ? currentTheme.primary : "#9ca3af" }}
+              className="p-1.5 transition active:scale-90"
+              style={{
+                color: repeatMode !== "off" ? currentTheme.primary : "#9ca3af",
+              }}
               title={`Repeat: ${repeatMode}`}
             >
               {repeatMode === "one" ? (
@@ -219,38 +218,45 @@ export default function PlayerBar() {
         </div>
       </div>
 
-      {/* ======================================================== */}
-      {/* 2. MOBILE FULL-SCREEN SLIDE-UP VIEW (When expanded)       */}
-      {/* ======================================================== */}
+      {/* ============================================================== */}
+      {/* 2. MOBILE FULL-SCREEN SLIDE-UP VIEW                             */}
+      {/* ============================================================== */}
       {isMobileExpanded && (
-        <div className="md:hidden fixed inset-0 z-50 bg-gradient-to-b from-[#181818] via-[#121212] to-black p-6 flex flex-col justify-between select-none animate-in slide-in-from-bottom duration-200">
+        <div className="md:hidden fixed inset-0 z-50 bg-gradient-to-b from-[#1c1c1c] via-[#121212] to-black p-6 flex flex-col justify-between select-none animate-in slide-in-from-bottom duration-300">
+          {/* Top Bar Header */}
           <div className="flex items-center justify-between text-neutral-400">
             <button
               onClick={() => setIsMobileExpanded(false)}
-              className="p-2 rounded-full hover:bg-white/10 text-white"
+              className="p-2 rounded-full hover:bg-white/10 text-white transition active:scale-90"
             >
               <ChevronDown className="w-6 h-6" />
             </button>
-            <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+
+            <span className="text-xs font-bold uppercase tracking-widest text-neutral-300">
               Now Playing
             </span>
+
             <button
               onClick={toggleLyrics}
-              className="p-2 rounded-full hover:bg-white/10"
-              style={{ color: isLyricsOpen ? currentTheme.primary : "currentColor" }}
+              className="p-2 rounded-full hover:bg-white/10 transition active:scale-90"
+              style={{
+                color: isLyricsOpen ? currentTheme.primary : "currentColor",
+              }}
             >
               <Mic2 className="w-5 h-5" />
             </button>
           </div>
 
+          {/* Album Artwork & Details */}
           <div className="my-auto flex flex-col items-center">
-            <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-2xl overflow-hidden shadow-2xl bg-neutral-900 border border-white/10 mb-6">
+            <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-2xl overflow-hidden shadow-2xl bg-neutral-900 border border-white/10 mb-6 transition-transform">
               <img
                 src={currentTrack.coverUrl}
                 alt={currentTrack.title}
                 className="w-full h-full object-cover"
               />
             </div>
+
             <div className="w-full flex items-center justify-between px-2">
               <div className="overflow-hidden pr-2">
                 <h2 className="text-xl font-black text-white truncate">
@@ -260,6 +266,7 @@ export default function PlayerBar() {
                   {currentTrack.artist}
                 </p>
               </div>
+
               <button
                 onClick={() => toggleLike(currentTrack.id)}
                 className="p-2 transition active:scale-90"
@@ -275,6 +282,7 @@ export default function PlayerBar() {
             </div>
           </div>
 
+          {/* Controls, Progress, and Extra Mobile Utilities */}
           <div className="w-full space-y-4 pb-4">
             <div>
               <div className="relative flex items-center py-2">
@@ -295,23 +303,30 @@ export default function PlayerBar() {
                   className="w-full h-1.5 bg-transparent rounded-lg appearance-none cursor-pointer outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
                 />
               </div>
+
               <div className="flex items-center justify-between text-xs text-neutral-400 font-mono">
                 <span>{formatTime(activeTime)}</span>
                 <span>{formatTime(duration)}</span>
               </div>
             </div>
 
+            {/* Playback Button Row */}
             <div className="flex items-center justify-between px-4">
               <button
                 onClick={toggleShuffle}
-                className="p-2"
+                className="p-2 transition active:scale-90"
                 style={{ color: isShuffle ? currentTheme.primary : "#9ca3af" }}
               >
                 <Shuffle className="w-5 h-5" />
               </button>
-              <button onClick={prevTrack} className="p-2 text-white active:scale-90">
+
+              <button
+                onClick={prevTrack}
+                className="p-2 text-white active:scale-90 transition"
+              >
                 <SkipBack className="w-7 h-7 fill-white" />
               </button>
+
               <button
                 onClick={togglePlay}
                 style={{ backgroundColor: currentTheme.primary }}
@@ -323,24 +338,74 @@ export default function PlayerBar() {
                   <Play className="w-7 h-7 fill-black text-black translate-x-0.5" />
                 )}
               </button>
-              <button onClick={nextTrack} className="p-2 text-white active:scale-90">
+
+              <button
+                onClick={nextTrack}
+                className="p-2 text-white active:scale-90 transition"
+              >
                 <SkipForward className="w-7 h-7 fill-white" />
               </button>
+
               <button
                 onClick={toggleRepeat}
-                className="p-2"
-                style={{ color: repeatMode !== "off" ? currentTheme.primary : "#9ca3af" }}
+                className="p-2 transition active:scale-90"
+                style={{
+                  color: repeatMode !== "off" ? currentTheme.primary : "#9ca3af",
+                }}
               >
-                {repeatMode === "one" ? <Repeat1 className="w-5 h-5" /> : <Repeat className="w-5 h-5" />}
+                {repeatMode === "one" ? (
+                  <Repeat1 className="w-5 h-5" />
+                ) : (
+                  <Repeat className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+
+            {/* Mobile Utility Row: Connect Devices, Queue, & Lyrics */}
+            <div className="flex items-center justify-around pt-3 border-t border-white/10 text-neutral-400">
+              <button
+                onClick={toggleDevices}
+                className="p-2 rounded-lg flex items-center gap-1.5 transition active:scale-95"
+                style={{
+                  color: isDevicesOpen ? currentTheme.primary : "#a3a3a3",
+                }}
+                title="Connect device"
+              >
+                <Laptop2 className="w-5 h-5" />
+                <span className="text-[11px] font-semibold">Devices</span>
+              </button>
+
+              <button
+                onClick={toggleLyrics}
+                className="p-2 rounded-lg flex items-center gap-1.5 transition active:scale-95"
+                style={{
+                  color: isLyricsOpen ? currentTheme.primary : "#a3a3a3",
+                }}
+                title="Lyrics"
+              >
+                <Mic2 className="w-5 h-5" />
+                <span className="text-[11px] font-semibold">Lyrics</span>
+              </button>
+
+              <button
+                onClick={toggleQueue}
+                className="p-2 rounded-lg flex items-center gap-1.5 transition active:scale-95"
+                style={{
+                  color: isQueueOpen ? currentTheme.primary : "#a3a3a3",
+                }}
+                title="Queue"
+              >
+                <ListMusic className="w-5 h-5" />
+                <span className="text-[11px] font-semibold">Queue</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ======================================================== */}
-      {/* 3. DESKTOP BAR (Screens >= 768px)                         */}
-      {/* ======================================================== */}
+      {/* ============================================================== */}
+      {/* 3. DESKTOP BAR (Screens >= 768px)                               */}
+      {/* ============================================================== */}
       <footer className="hidden md:flex h-20 bg-black border-t border-neutral-800 px-4 items-center justify-between select-none z-40 fixed bottom-0 left-0 right-0">
         <div className="flex items-center gap-3 w-[30%] min-w-[180px] max-w-[340px]">
           <div
@@ -353,6 +418,7 @@ export default function PlayerBar() {
               className="w-full h-full object-cover"
             />
           </div>
+
           <div className="overflow-hidden pr-2">
             <p
               onClick={toggleNowPlaying}
@@ -360,10 +426,14 @@ export default function PlayerBar() {
             >
               {currentTrack.title}
             </p>
-            <p className="text-[11px] text-neutral-400 truncate hover:underline cursor-pointer mt-0.5">
+            <p
+              onClick={toggleNowPlaying}
+              className="text-[11px] text-neutral-400 truncate hover:underline cursor-pointer mt-0.5"
+            >
               {currentTrack.artist}
             </p>
           </div>
+
           <button
             onClick={() => toggleLike(currentTrack.id)}
             className="text-neutral-400 hover:text-white transition flex-shrink-0 p-1"
@@ -426,10 +496,16 @@ export default function PlayerBar() {
             <button
               onClick={toggleRepeat}
               className="transition relative p-1"
-              style={{ color: repeatMode !== "off" ? currentTheme.primary : "#a3a3a3" }}
+              style={{
+                color: repeatMode !== "off" ? currentTheme.primary : "#a3a3a3",
+              }}
               title={`Repeat: ${repeatMode}`}
             >
-              {repeatMode === "one" ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
+              {repeatMode === "one" ? (
+                <Repeat1 className="w-4 h-4" />
+              ) : (
+                <Repeat className="w-4 h-4" />
+              )}
               {repeatMode !== "off" && (
                 <span
                   style={{ backgroundColor: currentTheme.primary }}
@@ -471,7 +547,9 @@ export default function PlayerBar() {
           <button
             onClick={toggleNowPlaying}
             className="p-1 transition rounded"
-            style={{ color: isNowPlayingOpen ? currentTheme.primary : "#a3a3a3" }}
+            style={{
+              color: isNowPlayingOpen ? currentTheme.primary : "#a3a3a3",
+            }}
             title="Now Playing"
           >
             <Tv2 className="w-4 h-4" />
@@ -480,7 +558,9 @@ export default function PlayerBar() {
           <button
             onClick={toggleLyrics}
             className="p-1 transition rounded"
-            style={{ color: isLyricsOpen ? currentTheme.primary : "#a3a3a3" }}
+            style={{
+              color: isLyricsOpen ? currentTheme.primary : "#a3a3a3",
+            }}
             title="Lyrics"
           >
             <Mic2 className="w-4 h-4" />
@@ -489,7 +569,9 @@ export default function PlayerBar() {
           <button
             onClick={toggleQueue}
             className="p-1 transition rounded"
-            style={{ color: isQueueOpen ? currentTheme.primary : "#a3a3a3" }}
+            style={{
+              color: isQueueOpen ? currentTheme.primary : "#a3a3a3",
+            }}
             title="Queue"
           >
             <ListMusic className="w-4 h-4" />
@@ -498,7 +580,9 @@ export default function PlayerBar() {
           <button
             onClick={toggleDevices}
             className="p-1 transition rounded"
-            style={{ color: isDevicesOpen ? currentTheme.primary : "#a3a3a3" }}
+            style={{
+              color: isDevicesOpen ? currentTheme.primary : "#a3a3a3",
+            }}
             title="Connect device"
           >
             <Laptop2 className="w-4 h-4" />
