@@ -15,7 +15,7 @@ import {
   Heart,
   Mic2,
   ListMusic,
-  Tv2,
+  NotebookPen,
   Laptop2,
   ChevronDown,
 } from "lucide-react";
@@ -105,11 +105,8 @@ export default function PlayerBar() {
 
   return (
     <>
-      {/* ============================================================== */}
-      {/* 1. MOBILE COMPACT BAR (Screens < 768px)                         */}
-      {/* ============================================================== */}
-      <div className="md:hidden fixed bottom-16 left-2 right-2 z-40 bg-[#181818]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden select-none transition-all">
-        {/* Hairline Progress Bar */}
+      {/* 1. MOBILE COMPACT DOCK (< 768px) */}
+      <div className="md:hidden fixed bottom-16 left-2 right-2 z-30 bg-[#181818]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden select-none">
         <div className="w-full h-1 bg-white/10">
           <div
             className="h-full transition-all duration-150"
@@ -121,7 +118,6 @@ export default function PlayerBar() {
         </div>
 
         <div className="px-3 py-2 flex flex-col gap-1.5">
-          {/* Top Row: Artwork, Title, Artist, Timestamp, and Like */}
           <div className="flex items-center justify-between gap-2">
             <div
               onClick={() => setIsMobileExpanded(true)}
@@ -160,7 +156,6 @@ export default function PlayerBar() {
             </button>
           </div>
 
-          {/* Bottom Row Controls */}
           <div className="flex items-center justify-around pt-1 border-t border-white/5">
             <button
               onClick={toggleShuffle}
@@ -218,12 +213,10 @@ export default function PlayerBar() {
         </div>
       </div>
 
-      {/* ============================================================== */}
-      {/* 2. MOBILE FULL-SCREEN SLIDE-UP VIEW                             */}
-      {/* ============================================================== */}
+      {/* 2. MOBILE FULL-SCREEN VIEW (z-40 so child panels at z-50/60 layer above) */}
       {isMobileExpanded && (
-        <div className="md:hidden fixed inset-0 z-50 bg-gradient-to-b from-[#1c1c1c] via-[#121212] to-black p-6 flex flex-col justify-between select-none animate-in slide-in-from-bottom duration-300">
-          {/* Top Bar Header */}
+        <div className="md:hidden fixed inset-0 z-40 bg-gradient-to-b from-[#1c1c1c] via-[#121212] to-black p-6 flex flex-col justify-between select-none animate-in slide-in-from-bottom duration-300">
+          {/* Header with Close and single Lyrics Mic */}
           <div className="flex items-center justify-between text-neutral-400">
             <button
               onClick={() => setIsMobileExpanded(false)}
@@ -242,14 +235,15 @@ export default function PlayerBar() {
               style={{
                 color: isLyricsOpen ? currentTheme.primary : "currentColor",
               }}
+              title="Lyrics"
             >
               <Mic2 className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Album Artwork & Details */}
+          {/* Artwork & Track Info */}
           <div className="my-auto flex flex-col items-center">
-            <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-2xl overflow-hidden shadow-2xl bg-neutral-900 border border-white/10 mb-6 transition-transform">
+            <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-2xl overflow-hidden shadow-2xl bg-neutral-900 border border-white/10 mb-6">
               <img
                 src={currentTrack.coverUrl}
                 alt={currentTrack.title}
@@ -282,7 +276,7 @@ export default function PlayerBar() {
             </div>
           </div>
 
-          {/* Controls, Progress, and Extra Mobile Utilities */}
+          {/* Scrubber & Player Controls */}
           <div className="w-full space-y-4 pb-4">
             <div>
               <div className="relative flex items-center py-2">
@@ -310,7 +304,6 @@ export default function PlayerBar() {
               </div>
             </div>
 
-            {/* Playback Button Row */}
             <div className="flex items-center justify-between px-4">
               <button
                 onClick={toggleShuffle}
@@ -361,7 +354,7 @@ export default function PlayerBar() {
               </button>
             </div>
 
-            {/* Mobile Utility Row: Connect Devices, Queue, & Lyrics */}
+            {/* Bottom Mobile Drawer Navigation: Devices, Notes Notebook, and Queue */}
             <div className="flex items-center justify-around pt-3 border-t border-white/10 text-neutral-400">
               <button
                 onClick={toggleDevices}
@@ -376,15 +369,15 @@ export default function PlayerBar() {
               </button>
 
               <button
-                onClick={toggleLyrics}
+                onClick={toggleNowPlaying}
                 className="p-2 rounded-lg flex items-center gap-1.5 transition active:scale-95"
                 style={{
-                  color: isLyricsOpen ? currentTheme.primary : "#a3a3a3",
+                  color: isNowPlayingOpen ? currentTheme.primary : "#a3a3a3",
                 }}
-                title="Lyrics"
+                title="Song Notes"
               >
-                <Mic2 className="w-5 h-5" />
-                <span className="text-[11px] font-semibold">Lyrics</span>
+                <NotebookPen className="w-5 h-5" />
+                <span className="text-[11px] font-semibold">Notes</span>
               </button>
 
               <button
@@ -403,10 +396,8 @@ export default function PlayerBar() {
         </div>
       )}
 
-      {/* ============================================================== */}
-      {/* 3. DESKTOP BAR (Screens >= 768px)                               */}
-      {/* ============================================================== */}
-      <footer className="hidden md:flex h-20 bg-black border-t border-neutral-800 px-4 items-center justify-between select-none z-40 fixed bottom-0 left-0 right-0">
+      {/* 3. DESKTOP BAR (>= 768px) */}
+      <footer className="hidden md:flex h-20 bg-black border-t border-neutral-800 px-4 items-center justify-between select-none z-30 fixed bottom-0 left-0 right-0">
         <div className="flex items-center gap-3 w-[30%] min-w-[180px] max-w-[340px]">
           <div
             onClick={toggleNowPlaying}
@@ -550,9 +541,9 @@ export default function PlayerBar() {
             style={{
               color: isNowPlayingOpen ? currentTheme.primary : "#a3a3a3",
             }}
-            title="Now Playing"
+            title="Song Notes"
           >
-            <Tv2 className="w-4 h-4" />
+            <NotebookPen className="w-4 h-4" />
           </button>
 
           <button
@@ -583,7 +574,7 @@ export default function PlayerBar() {
             style={{
               color: isDevicesOpen ? currentTheme.primary : "#a3a3a3",
             }}
-            title="Connect device"
+            title="Connected devices"
           >
             <Laptop2 className="w-4 h-4" />
           </button>
