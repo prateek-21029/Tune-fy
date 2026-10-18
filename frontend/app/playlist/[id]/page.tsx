@@ -161,7 +161,7 @@ export default function PlaylistDetail() {
       await api.patch(
         `/api/playlists/${playlistId}`,
         { name: editedTitle.trim() },
-        { headers: getAuthHeaders()}
+        { headers: getAuthHeaders() }
       );
       setPlaylist((prev) =>
         prev ? { ...prev, name: editedTitle.trim() } : prev
@@ -217,10 +217,20 @@ export default function PlaylistDetail() {
     }
   };
 
+  // Optimistic track deletion: updates the UI immediately without flickering loading screens
   const handleRemoveTrack = async (trackId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+
     if (isLikedView) {
       await toggleLike(trackId);
+      setPlaylist((prev) =>
+        prev
+          ? {
+              ...prev,
+              tracks: prev.tracks.filter((t) => t.id !== trackId),
+            }
+          : prev
+      );
       return;
     }
 
@@ -229,26 +239,48 @@ export default function PlaylistDetail() {
         !confirm(
           "Are you sure you want to permanently delete this uploaded track?"
         )
-      )
+      ) {
         return;
+      }
+
+      // Optimistically remove from state right away
+      setPlaylist((prev) =>
+        prev
+          ? {
+              ...prev,
+              tracks: prev.tracks.filter((t) => t.id !== trackId),
+            }
+          : prev
+      );
+
       try {
         await api.delete(`/api/tracks/${trackId}`, {
           headers: getAuthHeaders(),
         });
-        fetchPlaylistData();
       } catch (err) {
         console.error("Failed to delete track:", err);
+        fetchPlaylistData();
       }
       return;
     }
+
+    // Custom playlist track removal
+    setPlaylist((prev) =>
+      prev
+        ? {
+            ...prev,
+            tracks: prev.tracks.filter((t) => t.id !== trackId),
+          }
+        : prev
+    );
 
     try {
       await api.delete(`/api/playlists/${playlistId}/tracks/${trackId}`, {
         headers: getAuthHeaders(),
       });
-      fetchPlaylistData();
     } catch (err) {
       console.error("Failed to remove track:", err);
+      fetchPlaylistData();
     }
   };
 
@@ -402,7 +434,7 @@ export default function PlaylistDetail() {
         </div>
       )}
 
-      {/* Hero Banner with Smooth Depth */}
+      {/* Hero Banner */}
       <div
         style={{
           background: `linear-gradient(to bottom, ${currentTheme.gradientFrom}55 0%, #171717 65%, #121212 100%)`,
@@ -545,7 +577,7 @@ export default function PlaylistDetail() {
         )}
       </div>
 
-      {/* Tracks Table with Staggered Visual Feel */}
+      {/* Tracks Table */}
       <div className="px-4 md:px-8 pb-16">
         <div className="grid grid-cols-12 text-xs font-bold text-neutral-400 uppercase tracking-wider border-b border-white/10 pb-2 mb-3 px-3">
           <div className="col-span-1 text-center">#</div>
