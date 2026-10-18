@@ -1,7 +1,18 @@
 "use client";
+
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Play, Pause, Heart, Music2, Clock, UploadCloud, FolderHeart } from "lucide-react";
+import {
+  Play,
+  Pause,
+  Heart,
+  Music2,
+  Clock,
+  UploadCloud,
+  FolderHeart,
+  CheckCircle2,
+  X,
+} from "lucide-react";
 import api from "../utils/api";
 import TrackMenu from "../components/TrackMenu";
 import UploadModal from "../components/UploadModal";
@@ -23,8 +34,16 @@ export default function Home() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [showUploadToast, setShowUploadToast] = useState(false);
   const [recentTrackIds, setRecentTrackIds] = useState<string[]>([]);
-  const { currentTrack, isPlaying, playTrack, togglePlay, likedTrackIds, toggleLike } = useAudio();
+  const {
+    currentTrack,
+    isPlaying,
+    playTrack,
+    togglePlay,
+    likedTrackIds,
+    toggleLike,
+  } = useAudio();
   const { user, token, openAuthModal } = useAuth() as any;
 
   // Real-time synchronization of Recently Played tracks
@@ -75,9 +94,8 @@ export default function Home() {
     return "Good evening";
   }, []);
 
-  const activeDisplayName = user ? (user.displayName || user.username) : "";
+  const activeDisplayName = user ? user.displayName || user.username : "";
 
-  // Compute displayed tracks
   // Compute displayed tracks
   const displayedTracks = useMemo(() => {
     if (!user) {
@@ -90,7 +108,6 @@ export default function Home() {
         .filter((t): t is Track => t !== undefined);
       if (resolved.length > 0) return resolved.slice(0, 18);
     }
-    // For logged-in users with no playback history, do NOT fall back to demo tracks
     return [];
   }, [user, tracks, recentTrackIds]);
 
@@ -100,6 +117,14 @@ export default function Home() {
       return;
     }
     setIsUploadOpen(true);
+  };
+
+  const handleUploadSuccess = () => {
+    fetchTracks();
+    setShowUploadToast(true);
+    setTimeout(() => {
+      setShowUploadToast(false);
+    }, 4500);
   };
 
   const handlePlayPlaylist = (pl: PlaylistSummary, e: React.MouseEvent) => {
@@ -117,8 +142,10 @@ export default function Home() {
     }
   };
 
-  const contrastIconText = themeKey === "white" ? "fill-black text-black" : "fill-black text-black";
-  const buttonTextColor = themeKey === "white" ? "text-black" : "text-black";
+  const contrastIconText =
+    themeKey === "white" ? "fill-black text-black" : "fill-black text-black";
+  const buttonTextColor =
+    themeKey === "white" ? "text-black" : "text-black";
 
   return (
     <div
@@ -128,10 +155,42 @@ export default function Home() {
       className="flex-1 flex flex-col min-h-0 select-none overflow-y-auto"
     >
       <TopHeader />
+
+      {/* Persistent Upload Success Toast Popup */}
+      {showUploadToast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[10002] max-w-sm sm:max-w-md w-[90%] bg-[#1e1e1e]/95 border border-white/10 backdrop-blur-md rounded-2xl shadow-2xl px-4 py-3 flex items-center justify-between gap-3 text-white select-none animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <CheckCircle2
+              className="w-5 h-5 flex-shrink-0"
+              style={{ color: currentTheme.primary }}
+            />
+            <p className="text-xs sm:text-sm font-medium text-neutral-200">
+              Song uploaded Successfully. View in{" "}
+              <button
+                onClick={() => {
+                  setShowUploadToast(false);
+                  router.push("/playlist/uploads");
+                }}
+                style={{ color: currentTheme.primary }}
+                className="font-bold underline hover:opacity-80 transition inline"
+              >
+                Uploaded songs
+              </button>
+            </p>
+          </div>
+          <button
+            onClick={() => setShowUploadToast(false)}
+            className="p-1 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition flex-shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       <UploadModal
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
-        onUploadSuccess={fetchTracks}
+        onUploadSuccess={handleUploadSuccess}
       />
 
       <div className="p-8 pt-0 space-y-8">
@@ -220,7 +279,10 @@ export default function Home() {
         <section>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
-              <Clock className="w-5 h-5" style={{ color: currentTheme.primary }} />
+              <Clock
+                className="w-5 h-5"
+                style={{ color: currentTheme.primary }}
+              />
               <h2 className="text-xl font-bold text-white tracking-tight">
                 {user ? "Recently Played" : "Featured Tracks"}
               </h2>
@@ -228,6 +290,7 @@ export default function Home() {
                 {displayedTracks.length}
               </span>
             </div>
+
             {user && (
               <button
                 onClick={handleOpenUpload}
@@ -294,7 +357,9 @@ export default function Home() {
                         {isCurrent && isPlaying ? (
                           <Pause className={`w-4 h-4 ${contrastIconText}`} />
                         ) : (
-                          <Play className={`w-4 h-4 translate-x-0.5 ${contrastIconText}`} />
+                          <Play
+                            className={`w-4 h-4 translate-x-0.5 ${contrastIconText}`}
+                          />
                         )}
                       </button>
                     </div>
@@ -302,7 +367,9 @@ export default function Home() {
                     <div className="flex-1 flex flex-col justify-between">
                       <div>
                         <h3
-                          style={{ color: isCurrent ? currentTheme.primary : "white" }}
+                          style={{
+                            color: isCurrent ? currentTheme.primary : "white",
+                          }}
                           className="font-bold text-xs truncate"
                         >
                           {track.title}
@@ -317,7 +384,8 @@ export default function Home() {
                           onClick={(e) => {
                             e.stopPropagation();
                             if (!user) {
-                              if (typeof openAuthModal === "function") openAuthModal();
+                              if (typeof openAuthModal === "function")
+                                openAuthModal();
                               return;
                             }
                             toggleLike(track.id);
@@ -328,10 +396,13 @@ export default function Home() {
                             className="w-3.5 h-3.5"
                             style={{
                               fill: isLiked ? currentTheme.primary : "none",
-                              color: isLiked ? currentTheme.primary : "currentColor",
+                              color: isLiked
+                                ? currentTheme.primary
+                                : "currentColor",
                             }}
                           />
                         </button>
+
                         {user && track.userId === user.id && (
                           <TrackMenu
                             trackId={track.id}
@@ -359,6 +430,7 @@ export default function Home() {
                 Your Playlists
               </h2>
             </div>
+
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
               {playlists.map((pl) => (
                 <div
@@ -368,26 +440,35 @@ export default function Home() {
                 >
                   <div className="relative aspect-square w-full mb-3 shadow rounded-md overflow-hidden bg-neutral-800 flex items-center justify-center">
                     {pl.coverUrl ? (
-                      <img src={pl.coverUrl} alt={pl.name} className="w-full h-full object-cover" />
+                      <img
+                        src={pl.coverUrl}
+                        alt={pl.name}
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       <Music2 className="w-12 h-12 text-neutral-600" />
                     )}
+
                     {pl.tracks.length > 0 && (
                       <button
                         onClick={(e) => handlePlayPlaylist(pl, e)}
                         style={{ backgroundColor: currentTheme.primary }}
                         className="absolute bottom-2 right-2 w-11 h-11 rounded-full flex items-center justify-center shadow-xl transition-all duration-300 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 hover:scale-105 active:scale-95"
                       >
-                        <Play className={`w-4 h-4 translate-x-0.5 ${contrastIconText}`} />
+                        <Play
+                          className={`w-4 h-4 translate-x-0.5 ${contrastIconText}`}
+                        />
                       </button>
                     )}
                   </div>
+
                   <div>
                     <h3 className="font-bold text-xs text-white truncate">
                       {pl.name}
                     </h3>
                     <p className="text-[11px] text-neutral-400 mt-0.5 truncate">
-                      By {activeDisplayName || "You"} • {pl.tracks.length} {pl.tracks.length === 1 ? "song" : "songs"}
+                      By {activeDisplayName || "You"} • {pl.tracks.length}{" "}
+                      {pl.tracks.length === 1 ? "song" : "songs"}
                     </p>
                   </div>
                 </div>
