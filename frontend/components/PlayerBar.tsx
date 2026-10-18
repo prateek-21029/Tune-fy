@@ -105,7 +105,9 @@ export default function PlayerBar() {
 
   return (
     <>
-      {/* 1. MOBILE COMPACT DOCK (< 768px) */}
+      {/* ============================================================== */}
+      {/* 1. MOBILE COMPACT BAR (< 768px)                                */}
+      {/* ============================================================== */}
       <div className="md:hidden fixed bottom-16 left-2 right-2 z-30 bg-[#181818]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden select-none">
         <div className="w-full h-1 bg-white/10">
           <div
@@ -213,14 +215,16 @@ export default function PlayerBar() {
         </div>
       </div>
 
-      {/* 2. MOBILE FULL-SCREEN VIEW (z-40 so child panels at z-50/60 layer above) */}
+      {/* ============================================================== */}
+      {/* 2. MOBILE FULL-SCREEN VIEW (z-[9999] so MobileNav cannot overlap) */}
+      {/* ============================================================== */}
       {isMobileExpanded && (
-        <div className="md:hidden fixed inset-0 z-40 bg-gradient-to-b from-[#1c1c1c] via-[#121212] to-black p-6 flex flex-col justify-between select-none animate-in slide-in-from-bottom duration-300">
-          {/* Header with Close and single Lyrics Mic */}
-          <div className="flex items-center justify-between text-neutral-400">
+        <div className="md:hidden fixed inset-0 z-[9999] bg-gradient-to-b from-[#1a1a1a] via-[#121212] to-black px-6 pt-4 pb-6 flex flex-col justify-between select-none h-screen h-[100dvh] max-h-[100dvh] overflow-hidden animate-in slide-in-from-bottom duration-300">
+          {/* Header */}
+          <div className="flex items-center justify-between text-neutral-400 flex-shrink-0 h-10">
             <button
               onClick={() => setIsMobileExpanded(false)}
-              className="p-2 rounded-full hover:bg-white/10 text-white transition active:scale-90"
+              className="p-2 -ml-2 rounded-full hover:bg-white/10 text-white transition active:scale-90"
             >
               <ChevronDown className="w-6 h-6" />
             </button>
@@ -231,7 +235,7 @@ export default function PlayerBar() {
 
             <button
               onClick={toggleLyrics}
-              className="p-2 rounded-full hover:bg-white/10 transition active:scale-90"
+              className="p-2 -mr-2 rounded-full hover:bg-white/10 transition active:scale-90"
               style={{
                 color: isLyricsOpen ? currentTheme.primary : "currentColor",
               }}
@@ -241,9 +245,9 @@ export default function PlayerBar() {
             </button>
           </div>
 
-          {/* Artwork & Track Info */}
-          <div className="my-auto flex flex-col items-center">
-            <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-2xl overflow-hidden shadow-2xl bg-neutral-900 border border-white/10 mb-6">
+          {/* Album Artwork & Track Info (Auto-sized to prevent overflowing viewport) */}
+          <div className="flex flex-col items-center justify-center my-auto flex-1 min-h-0 py-2">
+            <div className="w-[50vw] max-w-[210px] max-h-[26vh] aspect-square rounded-2xl overflow-hidden shadow-2xl bg-neutral-900 border border-white/10 mb-3 flex-shrink">
               <img
                 src={currentTrack.coverUrl}
                 alt={currentTrack.title}
@@ -251,22 +255,22 @@ export default function PlayerBar() {
               />
             </div>
 
-            <div className="w-full flex items-center justify-between px-2">
+            <div className="w-full flex items-center justify-between px-1 flex-shrink-0">
               <div className="overflow-hidden pr-2">
-                <h2 className="text-xl font-black text-white truncate">
+                <h2 className="text-lg font-black text-white truncate">
                   {currentTrack.title}
                 </h2>
-                <p className="text-sm font-medium text-neutral-400 truncate mt-0.5">
+                <p className="text-xs font-medium text-neutral-400 truncate mt-0.5">
                   {currentTrack.artist}
                 </p>
               </div>
 
               <button
                 onClick={() => toggleLike(currentTrack.id)}
-                className="p-2 transition active:scale-90"
+                className="p-2 transition active:scale-90 flex-shrink-0"
               >
                 <Heart
-                  className="w-6 h-6"
+                  className="w-5 h-5"
                   style={{
                     fill: isLiked ? currentTheme.primary : "none",
                     color: isLiked ? currentTheme.primary : "white",
@@ -276,10 +280,11 @@ export default function PlayerBar() {
             </div>
           </div>
 
-          {/* Scrubber & Player Controls */}
-          <div className="w-full space-y-4 pb-4">
+          {/* Bottom Controls Area (Cleanly spaced above screen bottom) */}
+          <div className="w-full space-y-3 flex-shrink-0">
+            {/* Scrubber */}
             <div>
-              <div className="relative flex items-center py-2">
+              <div className="relative flex items-center py-1">
                 <input
                   type="range"
                   min="0"
@@ -298,13 +303,14 @@ export default function PlayerBar() {
                 />
               </div>
 
-              <div className="flex items-center justify-between text-xs text-neutral-400 font-mono">
+              <div className="flex items-center justify-between text-[11px] text-neutral-400 font-mono">
                 <span>{formatTime(activeTime)}</span>
                 <span>{formatTime(duration)}</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-between px-4">
+            {/* Playback Button Row */}
+            <div className="flex items-center justify-between px-2">
               <button
                 onClick={toggleShuffle}
                 className="p-2 transition active:scale-90"
@@ -317,18 +323,18 @@ export default function PlayerBar() {
                 onClick={prevTrack}
                 className="p-2 text-white active:scale-90 transition"
               >
-                <SkipBack className="w-7 h-7 fill-white" />
+                <SkipBack className="w-6 h-6 fill-white" />
               </button>
 
               <button
                 onClick={togglePlay}
                 style={{ backgroundColor: currentTheme.primary }}
-                className="w-16 h-16 rounded-full text-black flex items-center justify-center shadow-xl active:scale-95 transition"
+                className="w-13 h-13 sm:w-14 sm:h-14 rounded-full text-black flex items-center justify-center shadow-xl active:scale-95 transition"
               >
                 {isPlaying ? (
-                  <Pause className="w-7 h-7 fill-black text-black" />
+                  <Pause className="w-6 h-6 fill-black text-black" />
                 ) : (
-                  <Play className="w-7 h-7 fill-black text-black translate-x-0.5" />
+                  <Play className="w-6 h-6 fill-black text-black translate-x-0.5" />
                 )}
               </button>
 
@@ -336,7 +342,7 @@ export default function PlayerBar() {
                 onClick={nextTrack}
                 className="p-2 text-white active:scale-90 transition"
               >
-                <SkipForward className="w-7 h-7 fill-white" />
+                <SkipForward className="w-6 h-6 fill-white" />
               </button>
 
               <button
@@ -354,8 +360,8 @@ export default function PlayerBar() {
               </button>
             </div>
 
-            {/* Bottom Mobile Drawer Navigation: Devices, Notes Notebook, and Queue */}
-            <div className="flex items-center justify-around pt-3 border-t border-white/10 text-neutral-400">
+            {/* Mobile Utility Navigation: Devices, Notes, & Queue */}
+            <div className="flex items-center justify-around pt-2 border-t border-white/10 text-neutral-400">
               <button
                 onClick={toggleDevices}
                 className="p-2 rounded-lg flex items-center gap-1.5 transition active:scale-95"
@@ -364,7 +370,7 @@ export default function PlayerBar() {
                 }}
                 title="Connect device"
               >
-                <Laptop2 className="w-5 h-5" />
+                <Laptop2 className="w-4 h-4" />
                 <span className="text-[11px] font-semibold">Devices</span>
               </button>
 
@@ -376,7 +382,7 @@ export default function PlayerBar() {
                 }}
                 title="Song Notes"
               >
-                <NotebookPen className="w-5 h-5" />
+                <NotebookPen className="w-4 h-4" />
                 <span className="text-[11px] font-semibold">Notes</span>
               </button>
 
@@ -388,7 +394,7 @@ export default function PlayerBar() {
                 }}
                 title="Queue"
               >
-                <ListMusic className="w-5 h-5" />
+                <ListMusic className="w-4 h-4" />
                 <span className="text-[11px] font-semibold">Queue</span>
               </button>
             </div>
@@ -396,7 +402,9 @@ export default function PlayerBar() {
         </div>
       )}
 
-      {/* 3. DESKTOP BAR (>= 768px) */}
+      {/* ============================================================== */}
+      {/* 3. DESKTOP BAR (>= 768px)                                      */}
+      {/* ============================================================== */}
       <footer className="hidden md:flex h-20 bg-black border-t border-neutral-800 px-4 items-center justify-between select-none z-30 fixed bottom-0 left-0 right-0">
         <div className="flex items-center gap-3 w-[30%] min-w-[180px] max-w-[340px]">
           <div
