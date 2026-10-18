@@ -45,7 +45,6 @@ interface AudioContextType {
   isDevicesOpen: boolean;
   availableDevices: AudioDevice[];
   currentDeviceId: string;
-
   playTrack: (track: Track, newQueue?: Track[]) => void;
   togglePlay: () => void;
   nextTrack: () => void;
@@ -74,12 +73,10 @@ const AudioContext = createContext<AudioContextType | undefined>(undefined);
 
 export function AudioProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
-
   const [volume, setVolumeState] = useState<number>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("tunefy_volume");
@@ -120,6 +117,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const volumeRef = useRef<number>(volume);
   volumeRef.current = volume;
 
+  const previousUserIdRef = useRef<number | string | null | undefined>(undefined);
+
   const reorderQueue = useCallback((fromIndex: number, toIndex: number) => {
     setQueue((prevQueue) => {
       const updated = [...prevQueue];
@@ -139,12 +138,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       const current =
         currentIndex !== -1 ? prevQueue[currentIndex] : prevQueue[0];
       const remainder = prevQueue.filter((_, idx) => idx !== currentIndex);
-
       for (let i = remainder.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [remainder[i], remainder[j]] = [remainder[j], remainder[i]];
       }
-
       const shuffled = [current, ...remainder];
       queueRef.current = shuffled;
       return shuffled;
@@ -161,8 +158,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) {
       if (err.name !== "AbortError") {
         console.error("Playback error:", err);
+        setIsPlaying(false);
       }
-      setIsPlaying(false);
     } finally {
       playPromiseRef.current = null;
     }
@@ -182,25 +179,30 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     setIsPlaying(false);
   }, []);
 
-  // Reset playback and collapse panels on Login or Logout
+  // Only reset playback if user transitions from logged-in to logged-out
   useEffect(() => {
-    setIsNowPlayingOpen(false);
-    setIsQueueOpen(false);
-    setIsLyricsOpen(false);
-    setIsDevicesOpen(false);
-
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = "";
-      audioRef.current.currentTime = 0;
+    const currentUserId = user?.id ?? null;
+    if (previousUserIdRef.current !== undefined) {
+      if (previousUserIdRef.current !== null && currentUserId === null) {
+        setIsNowPlayingOpen(false);
+        setIsQueueOpen(false);
+        setIsLyricsOpen(false);
+        setIsDevicesOpen(false);
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.src = "";
+          audioRef.current.currentTime = 0;
+        }
+        setCurrentTrack(null);
+        currentTrackRef.current = null;
+        setIsPlaying(false);
+        setCurrentTime(0);
+        setQueue([]);
+        queueRef.current = [];
+      }
     }
-    setCurrentTrack(null);
-    currentTrackRef.current = null;
-    setIsPlaying(false);
-    setCurrentTime(0);
-    setQueue([]);
-    queueRef.current = [];
-  }, [user]);
+    previousUserIdRef.current = currentUserId;
+  }, [user?.id]);
 
   const playTrack = useCallback(
     async (track: Track, newQueue?: Track[]) => {
@@ -219,10 +221,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
           track.id,
           ...existing.filter((id) => id !== track.id),
         ].slice(0, 25);
-        localStorage.setItem(
-          "tunefy_recent_tracks",
-          JSON.stringify(updated)
-        );
+        localStorage.setItem("tunefy_recent_tracks", JSON.stringify(updated));
         window.dispatchEvent(new Event("storage"));
       } catch (err) {
         console.error("Failed to save recent track:", err);
@@ -435,11 +434,20 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       updateAvailableDevices
     );
 
+    // Keep audio active across background tab changes
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isPlayingRef.current && audio.paused) {
+        audio.play().catch(() => {});
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       audio.pause();
       audio.removeEventListener("timeupdate", handleTimeUpdate);
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
       audio.removeEventListener("ended", handleEnded);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       navigator.mediaDevices?.removeEventListener?.(
         "devicechange",
         updateAvailableDevices
@@ -450,7 +458,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   // Hardware Media Session API
   useEffect(() => {
     if (!("mediaSession" in navigator) || !currentTrack) return;
-
     navigator.mediaSession.metadata = new MediaMetadata({
       title: currentTrack.title,
       artist: currentTrack.artist,
@@ -470,12 +477,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     navigator.mediaSession.setActionHandler("pause", () => {
       if (audioRef.current && isPlayingRef.current) togglePlay();
     });
-    navigator.mediaSession.setActionHandler("previoustrack", () =>
-      prevTrack()
-    );
-    navigator.mediaSession.setActionHandler("nexttrack", () =>
-      nextTrack()
-    );
+    navigator.mediaSession.setActionHandler("previoustrack", () => prevTrack());
+    navigator.mediaSession.setActionHandler("nexttrack", () => nextTrack());
     navigator.mediaSession.setActionHandler("seekbackward", () => {
       if (audioRef.current) seek(audioRef.current.currentTime - 5);
     });
@@ -493,7 +496,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     };
   }, [currentTrack, togglePlay, prevTrack, nextTrack, seek]);
 
-  // Keyboard Shortcuts (F8, F9, F10, Space, Arrow Keys)
+  // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return;
@@ -541,7 +544,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const fetchLikedTracks = async () => {
       try {
-        const res = await axios.get("https://tunefy-backend.onrender.com/api/liked");
+        const res = await axios.get(
+          "https://tunefy-backend.onrender.com/api/liked"
+        );
         setLikedTrackIds(res.data);
       } catch {
         setLikedTrackIds([]);
@@ -551,7 +556,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   const toggleShuffle = () => setIsShuffle((prev) => !prev);
-
   const toggleRepeat = () => {
     setRepeatMode((prev) => {
       if (prev === "off") return "all";
@@ -583,7 +587,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     setIsDevicesOpen((prev) => !prev);
     updateAvailableDevices();
   };
-
   const closeDevices = () => setIsDevicesOpen(false);
 
   const removeFromQueue = (index: number) => {

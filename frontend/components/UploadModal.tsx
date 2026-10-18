@@ -40,7 +40,6 @@ export default function UploadModal({
       const cleanName = file.name.replace(/\.[^/.]+$/, "");
       setTitle(cleanName);
 
-      // Measure accurate client-side audio duration in seconds
       const tempAudio = new Audio();
       tempAudio.src = URL.createObjectURL(file);
       tempAudio.onloadedmetadata = () => {
@@ -48,6 +47,10 @@ export default function UploadModal({
           setDetectedDuration(Math.round(tempAudio.duration));
         }
         URL.revokeObjectURL(tempAudio.src);
+      };
+      tempAudio.onerror = () => {
+        // Fallback gracefully if browser cannot decode raw metadata immediately
+        setDetectedDuration(210);
       };
     }
   };
@@ -58,8 +61,8 @@ export default function UploadModal({
     setErrorMsg("");
     try {
       const res = await api.get("/api/spotify/search", {
-  params: { q: title.trim() },
-});
+        params: { q: title.trim() },
+      });
       if (res.data.title) setTitle(res.data.title);
       if (res.data.artist) setArtist(res.data.artist);
       if (res.data.coverUrl) {
@@ -119,7 +122,10 @@ export default function UploadModal({
     }
 
     try {
-      const activeToken = token || (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+      const activeToken =
+        token ||
+        (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+
       const headers: Record<string, string> = {
         "Content-Type": "multipart/form-data",
       };
@@ -128,6 +134,7 @@ export default function UploadModal({
       }
 
       await api.post("/api/tracks/upload", formData, { headers });
+
       onUploadSuccess();
       onClose();
       setAudioFile(null);
@@ -141,7 +148,11 @@ export default function UploadModal({
         setShowLoginPrompt(true);
       } else {
         const detail = err.response?.data?.detail;
-        setErrorMsg(typeof detail === "string" ? detail : "Failed to upload track. Please try again.");
+        setErrorMsg(
+          typeof detail === "string"
+            ? detail
+            : "Failed to upload track. Please try again."
+        );
       }
     } finally {
       setIsUploading(false);
@@ -165,7 +176,7 @@ export default function UploadModal({
 
         <h2 className="text-xl font-bold mb-1">Upload Song</h2>
         <p className="text-xs text-neutral-400 mb-4">
-          Select an audio file and fetch official metadata and artwork.
+          Select an audio file (MP3, MPEG, WAV, M4A) and fetch official metadata and artwork.
         </p>
 
         {(!user || showLoginPrompt) && (
@@ -194,7 +205,7 @@ export default function UploadModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1">
-              Audio File (.mp3, .wav, .m4a)*
+              Audio File (.mp3, .mpeg, .mpg, .wav, .m4a)*
             </label>
             <div className="flex items-center gap-3">
               <label
@@ -204,7 +215,7 @@ export default function UploadModal({
                 Choose File
                 <input
                   type="file"
-                  accept="audio/*"
+                  accept="audio/*,.mp3,.mpeg,.mpg,.wav,.m4a,audio/mpeg,video/mpeg,audio/wav,audio/x-m4a"
                   onChange={handleAudioSelect}
                   className="hidden"
                 />
@@ -228,7 +239,9 @@ export default function UploadModal({
                 className="text-[11px] hover:underline flex items-center gap-1 font-semibold disabled:opacity-50"
               >
                 <Sparkles className="w-3 h-3" />
-                <span>{isSearching ? "Searching..." : "Auto-Fetch from Spotify"}</span>
+                <span>
+                  {isSearching ? "Searching..." : "Auto-Fetch from Spotify"}
+                </span>
               </button>
             </div>
             <input
@@ -299,7 +312,9 @@ export default function UploadModal({
             className="w-full py-2.5 text-black font-extrabold text-xs rounded-full transition shadow-md flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 mt-2 hover:opacity-90"
           >
             <UploadCloud className="w-4 h-4" />
-            <span>{isUploading ? "Uploading & Processing..." : "Add to Library"}</span>
+            <span>
+              {isUploading ? "Uploading & Processing..." : "Add to Library"}
+            </span>
           </button>
         </form>
       </div>

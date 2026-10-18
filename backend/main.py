@@ -42,7 +42,7 @@ def get_backend_base_url() -> str:
         else "http://localhost:8000"
     ).rstrip("/")
 
-# --- SUPABASE STORAGE CONFIGURATION ---
+# SUPABASE STORAGE CONFIGURATION
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://cvqwnjdahhzjjyfgfvmc.supabase.co").rstrip("/")
 SUPABASE_KEY = os.getenv(
     "SUPABASE_KEY",
@@ -65,9 +65,7 @@ os.makedirs(COVERS_DIR, exist_ok=True)
 def upload_file_to_supabase(file_bytes: bytes, filename: str, content_type: str = "audio/mpeg") -> str:
     """Uploads file to Supabase 'TUNEFY-FILES' bucket and returns direct public URL."""
     base_url = get_backend_base_url()
-    
     if supabase:
-        # Try both the dashboard name 'TUNEFY-FILES' and lowercase fallback
         for bucket_name in ["TUNEFY-FILES", "tunefy-files"]:
             try:
                 supabase.storage.from_(bucket_name).upload(
@@ -77,12 +75,10 @@ def upload_file_to_supabase(file_bytes: bytes, filename: str, content_type: str 
                 )
                 return f"{SUPABASE_URL}/storage/v1/object/public/{bucket_name}/{filename}"
             except Exception as e:
-                # If already exists or bucket error, try next
                 if "Duplicate" in str(e) or "already exists" in str(e).lower():
                     return f"{SUPABASE_URL}/storage/v1/object/public/{bucket_name}/{filename}"
                 print(f"Supabase upload attempt ({bucket_name}) error: {e}")
 
-    # Fallback to backend static files with Render's HTTPS URL in production
     local_path = os.path.join(STATIC_DIR, filename)
     with open(local_path, "wb") as f:
         f.write(file_bytes)
@@ -97,17 +93,15 @@ except Exception:
 
 JWT_SECRET = "tunefy_super_secret_jwt_key_2026"
 JWT_ALGORITHM = "HS256"
-# Database connection: Uses PostgreSQL on Render/Supabase, SQLite locally
+
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./tunefy.db")
 
-# Force SQLAlchemy to use the installed psycopg2 driver for postgresql
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
 elif DATABASE_URL.startswith("postgresql://") and not DATABASE_URL.startswith("postgresql+psycopg2://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
-
 engine = create_engine(
     DATABASE_URL,
     connect_args=connect_args,
@@ -115,7 +109,6 @@ engine = create_engine(
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
 
 playlist_tracks = Table(
@@ -168,7 +161,6 @@ Base.metadata.create_all(bind=engine)
 def run_auto_migrations():
     with engine.connect() as conn:
         inspector = inspect(engine)
-        # Users migrations
         if "users" in inspector.get_table_names():
             columns = [c["name"] for c in inspector.get_columns("users")]
             if "password_hash" not in columns:
@@ -190,7 +182,6 @@ def run_auto_migrations():
                 conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url VARCHAR"))
                 conn.commit()
 
-        # Tracks migrations
         if "tracks" in inspector.get_table_names():
             t_columns = [c["name"] for c in inspector.get_columns("tracks")]
             if "user_id" not in t_columns:
@@ -206,7 +197,6 @@ def run_auto_migrations():
 run_auto_migrations()
 
 def fix_all_audio_durations():
-    """Calculates actual audio lengths for all tracks from disk and repairs legacy 210 values."""
     try:
         from mutagen.mp3 import MP3
         from mutagen.wave import WAVE
@@ -221,7 +211,7 @@ def fix_all_audio_durations():
                     try:
                         ext = os.path.splitext(filename)[1].lower()
                         real_secs = 0
-                        if ext == ".mp3":
+                        if ext in [".mp3", ".mpeg", ".mpg"]:
                             real_secs = int(MP3(filepath).info.length)
                         elif ext == ".wav":
                             real_secs = int(WAVE(filepath).info.length)
@@ -232,7 +222,7 @@ def fix_all_audio_durations():
                         pass
         if repaired_count > 0:
             db.commit()
-            print(f"--> Successfully repaired {repaired_count} track timestamps in SQLite database!")
+            print(f"--> Repaired {repaired_count} timestamps.")
         db.close()
     except Exception as e:
         print(f"Timestamp repair note: {e}")
@@ -246,13 +236,14 @@ def get_db():
     finally:
         db.close()
 
-# --- FASTAPI APP ---
+# FASTAPI APP
 app = FastAPI(title="Tune-fy API")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
+        "https://tune-fy.vercel.app",
         "https://tune-fy-xdk7.vercel.app",
     ],
     allow_origin_regex=r"https://.*\.vercel\.app",
@@ -269,10 +260,10 @@ class UserRegister(BaseModel):
     security_answer: Optional[str] = None
 
 class SecurityQuestionRequest(BaseModel):
-    identifier: str  # Can be username OR email
+    identifier: str
 
 class ResetPasswordRequest(BaseModel):
-    identifier: str  # Can be username OR email
+    identifier: str
     security_answer: str
     new_password: str
 
@@ -339,7 +330,7 @@ def normalize_url(url: str) -> str:
         return f"{base_url}{url}"
     return f"{base_url}/static/{url}"
 
-# --- FILE ROUTING WITH FALLBACKS ---
+# FILE ROUTING
 @app.get("/uploads/covers/{filename:path}")
 def handle_covers(filename: str):
     p1 = os.path.join(COVERS_DIR, filename)
@@ -365,7 +356,7 @@ def handle_uploads(filename: str):
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-# --- AUTH ENDPOINTS ---
+# AUTH ENDPOINTS
 @app.post("/api/auth/register")
 def register(payload: UserRegister, db: Session = Depends(get_db)):
     uname = payload.username.strip()
@@ -375,7 +366,6 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username or email already taken")
-
     new_user = DBUser(
         username=uname,
         email=uemail,
@@ -402,19 +392,15 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
 @app.post("/api/auth/login")
 def login(payload: UserLogin, db: Session = Depends(get_db)):
     identifier = payload.username.strip()
-    
-    # Check case-insensitively so login succeeds regardless of typing email or username
     user = db.query(DBUser).filter(
-        (DBUser.username.ilike(identifier)) | (DBUser.email.ilike(identifier))
+        (DBUser.username.ilike(identifier)) |
+        (DBUser.email.ilike(identifier))
     ).first()
-    
     if not user:
         raise HTTPException(status_code=401, detail="Invalid username/email or password")
-    
     pwd = payload.password.strip()
     if user.password_hash != pwd and not verify_password(pwd, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid username/email or password")
-    
     token = create_token(user.id)
     return {
         "token": token,
@@ -502,7 +488,6 @@ def upload_avatar(
     ext = os.path.splitext(file.filename)[1] or ".png"
     filename = f"avatar_{current_user.id}_{int(time.time())}{ext}"
     file_bytes = file.file.read()
-    
     avatar_url = upload_file_to_supabase(file_bytes, filename, "image/png")
     current_user.avatar_url = avatar_url
     db.commit()
@@ -517,16 +502,13 @@ def delete_account(
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    # 1. Clear user playlists and junction associations in playlist_tracks
     user_playlists = db.query(DBPlaylist).filter(DBPlaylist.user_id == current_user.id).all()
     for pl in user_playlists:
         pl.tracks.clear()
         db.delete(pl)
 
-    # 2. Delete liked track entries safely
     db.query(DBLikedTrack).filter(DBLikedTrack.user_id == current_user.id).delete(synchronize_session=False)
 
-    # 3. Clean up physical files and track records uploaded by the user
     user_tracks = db.query(DBTrack).filter(DBTrack.user_id == current_user.id).all()
     for t in user_tracks:
         if t.audio_url and "/static/" in t.audio_url:
@@ -545,12 +527,11 @@ def delete_account(
                     pass
         db.delete(t)
 
-    # 4. Delete user account
     db.delete(current_user)
     db.commit()
     return {"status": "deleted"}
 
-# --- SPOTIFY SEARCH METADATA ---
+# SPOTIFY METADATA SEARCH
 @app.get("/api/spotify/search")
 def search_spotify_meta(q: str):
     try:
@@ -573,7 +554,6 @@ def search_spotify_meta(q: str):
         pass
     return {"title": q, "artist": "", "coverUrl": None}
 
-# --- TRACKS ENDPOINTS ---
 STOCK_DEMO_TRACKS = [
     {
         "id": "1",
@@ -623,7 +603,6 @@ STOCK_DEMO_TRACKS = [
 ]
 
 def ensure_demo_tracks(db: Session):
-    """Seed demo tracks if none are present in database."""
     count = db.query(DBTrack).filter(DBTrack.user_id == None).count()
     if count == 0:
         for item in STOCK_DEMO_TRACKS:
@@ -639,13 +618,13 @@ def ensure_demo_tracks(db: Session):
             )
             db.add(db_track)
         db.commit()
-        # Update existing demo tracks if they were already seeded with 210
+
     durations_map = {"1": 372, "2": 425, "3": 346, "4": 302, "5": 353}
     for track_id, real_len in durations_map.items():
         db_track = db.query(DBTrack).filter(DBTrack.id == track_id).first()
         if db_track and db_track.duration == 210:
             db_track.duration = real_len
-    db.commit()
+            db.commit()
 
 @app.get("/api/tracks")
 def get_tracks(
@@ -654,14 +633,10 @@ def get_tracks(
 ):
     current_user = get_current_user_optional(authorization, db)
     ensure_demo_tracks(db)
-
     if current_user:
-        # Logged-in user strictly receives their own uploaded tracks (empty list if none)
         tracks = db.query(DBTrack).filter(DBTrack.user_id == current_user.id).all()
     else:
-        # Guests strictly receive the demo tracks
         tracks = db.query(DBTrack).filter(DBTrack.user_id == None).all()
-
     return [
         {
             "id": t.id,
@@ -693,11 +668,15 @@ def upload_track(
     user_id = current_user.id if current_user else None
     track_id = f"track_{int(time.time() * 1000)}"
 
-    # 1. Read audio bytes and calculate duration
+    # 1. Read audio bytes and handle file formats (MP3, MPEG, WAV, M4A, etc.)
     audio_bytes = audio.file.read()
-    audio_ext = os.path.splitext(audio.filename)[1] or ".mp3"
+    raw_ext = os.path.splitext(audio.filename)[1].lower() if audio.filename else ".mp3"
+    
+    # Normalize .mpeg and .mpg to .mp3 container if needed, or retain exact extension
+    audio_ext = raw_ext if raw_ext in [".mp3", ".wav", ".mpeg", ".mpg", ".m4a", ".aac", ".ogg"] else ".mp3"
     audio_filename = f"{track_id}{audio_ext}"
     temp_audio_path = os.path.join(STATIC_DIR, audio_filename)
+
     with open(temp_audio_path, "wb") as buffer:
         buffer.write(audio_bytes)
 
@@ -705,17 +684,31 @@ def upload_track(
     try:
         from mutagen.mp3 import MP3
         from mutagen.wave import WAVE
-        if audio_ext.lower() == ".mp3":
-            info = MP3(temp_audio_path)
-            final_duration = int(info.info.length)
-        elif audio_ext.lower() == ".wav":
-            info = WAVE(temp_audio_path)
-            final_duration = int(info.info.length)
+        if audio_ext in [".mp3", ".mpeg", ".mpg"]:
+            try:
+                info = MP3(temp_audio_path)
+                final_duration = int(info.info.length)
+            except Exception:
+                pass
+        elif audio_ext == ".wav":
+            try:
+                info = WAVE(temp_audio_path)
+                final_duration = int(info.info.length)
+            except Exception:
+                pass
     except Exception:
         pass
 
-    # 2. Upload Audio to Supabase
-    mime_type = "audio/mpeg" if audio_ext.lower() == ".mp3" else "audio/wav"
+    # 2. Upload Audio to Supabase with proper MIME mapping
+    if audio_ext in [".mp3", ".mpeg", ".mpg"]:
+        mime_type = "audio/mpeg"
+    elif audio_ext == ".wav":
+        mime_type = "audio/wav"
+    elif audio_ext == ".m4a":
+        mime_type = "audio/mp4"
+    else:
+        mime_type = "audio/mpeg"
+
     audio_url = upload_file_to_supabase(audio_bytes, audio_filename, mime_type)
 
     # 3. Handle Cover Artwork
@@ -807,7 +800,6 @@ def update_track(
         cover_filename = f"{track_id}_cover_{int(time.time())}{ext}"
         cover_bytes = cover.file.read()
         track.cover_url = upload_file_to_supabase(cover_bytes, cover_filename, "image/jpeg")
-
     db.commit()
     db.refresh(track)
     return {
@@ -821,7 +813,7 @@ def update_track(
         "artistBio": track.artist_bio,
     }
 
-# --- LIKED TRACKS ---
+# LIKED TRACKS
 @app.get("/api/liked")
 def get_liked_tracks(
     authorization: Optional[str] = Header(None),
@@ -853,7 +845,7 @@ def toggle_like(
     db.commit()
     return {"status": "liked"}
 
-# --- PLAYLISTS ---
+# PLAYLISTS
 @app.get("/api/playlists")
 def get_playlists(
     authorization: Optional[str] = Header(None),
@@ -933,7 +925,7 @@ def update_playlist(
         raise HTTPException(status_code=404, detail="Playlist not found")
     if payload.name:
         pl.name = payload.name.strip()
-    db.commit()
+        db.commit()
     return {"status": "updated", "name": pl.name}
 
 @app.post("/api/playlists/{playlist_id}/cover")
@@ -984,7 +976,7 @@ def delete_playlist(playlist_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "deleted"}
 
-# --- LYRICS PROXY ---
+# LYRICS PROXY
 @app.get("/api/lyrics")
 def get_lyrics(title: str, artist: Optional[str] = None):
     clean_title = title.split("(")[0].split("[")[0].strip()

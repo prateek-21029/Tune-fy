@@ -75,8 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuthStatus();
 
     // Re-verify authentication state when returning to this browser window
-    window.addEventListener("focus", checkAuthStatus);
-    return () => window.removeEventListener("focus", checkAuthStatus);
+    // Removed window.addEventListener("focus", checkAuthStatus) so switching apps or tabs never causes a background reload or pauses your music
   }, []);
 
   const openAuthModal = () => setIsAuthModalOpen(true);
